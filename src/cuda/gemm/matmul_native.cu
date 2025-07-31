@@ -1,13 +1,15 @@
 #include "matmul.cuh"
 
-__global__ void matmul_native(const float* A, const float* B, float* C, int M, int N, int K) {
-  int tx = blockIdx.x * blockDim.x + threadIdx.x;
-  int ty = blockIdx.y * blockDim.y + threadIdx.y;
-  if (ty < M && tx < N) {
-    float c = 0;
-    for (int i = 0; i < K; ++ i) {
-      c += A[ty * K + i] * B[i * N + tx];
+// a[m, n] * b[n, k] = c[m, k]
+__global__ void matmul_native(const float *a, const float *b, float *c, int m,
+                              int n, int k) {
+  const int col = blockIdx.x * blockDim.x + threadIdx.x;
+  const int row = blockIdx.y * blockDim.y + threadIdx.y;
+  if (row < m && col < k) {
+    float sum = 0;
+    for (int i = 0; i < n; ++ i) {
+      sum += a[row * n + i] * b[i * k + col];
     }
-    C[ty * N + tx] = c;
+    c[row * k + col] = sum;
   }
 }

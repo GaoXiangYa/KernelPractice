@@ -1,7 +1,8 @@
 #include <cuda_runtime_api.h>
 
-__global__ void matmul_native(const float *A, const float *B, float *C, int M,
-                              int N, int K);
+// a[m][n] * b[n][k] = c[m][k]
+__global__ void matmul_native(const float *a, const float *b, float *c, int n,
+                              int m, int k);
 
 // 使用shared memory进行优化
 template <int BLOCK>

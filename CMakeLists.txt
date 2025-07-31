@@ -29,7 +29,7 @@ if(USE_CUDA)
   # 查找 CUDA
   set(CMAKE_CUDA_STANDARD 20)
   set(CMAKE_CUDA_SEPARABLE_COMPILATION OFF)
-  set(CMAKE_CUDA_COMPILER "/usr/local/cuda-12.6/bin/nvcc")
+  set(CMAKE_CUDA_COMPILER "/usr/local/cuda-12.9/bin/nvcc")
   if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
     set(CMAKE_CUDA_ARCHITECTURES native)
   endif()
