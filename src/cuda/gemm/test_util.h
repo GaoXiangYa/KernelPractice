@@ -26,7 +26,7 @@ void init_random_matrix(std::vector<T> &matrix,
     }
   }
 }
-
+// a[m, n] * b[n, k] = c[m, k]
 inline void ref_matmul(const std::vector<float> &a,
                         const std::vector<float> &b, std::vector<float> &c,
                         int m, int n, int k) {
@@ -34,7 +34,7 @@ inline void ref_matmul(const std::vector<float> &a,
   for (int i = 0; i < m; ++i) {
     for (int p = 0; p < k; ++p) {
       for (int j = 0; j < n; ++j) {
-        c[i * k + p] += a[i * m + j] * b[j * k + p];
+        c[i * k + p] += a[i * n + j] * b[j * k + p];
       }
     }
   }

@@ -17,7 +17,7 @@ __global__ void matmul_native_kernel(const float *a, const float *b, float *c,
 
 // 使用shared memory进行优化
 template <int BLOCK>
-__global__ void matmul_kernel_0(float *A, float *B, float *C, int M, int N,
+__global__ void matmul_sharedmemory_kernel(float *A, float *B, float *C, int M, int N,
                                 int K) {
   const int tx = threadIdx.x;
   const int ty = threadIdx.y;
@@ -48,7 +48,27 @@ __global__ void matmul_kernel_0(float *A, float *B, float *C, int M, int N,
   C[(BLOCK * by + ty) * N + BLOCK * bx + tx] = sum;
 }
 
-void matmul_native(const float *a, const float *b, float *c, int n, int m,
-                   int k) {}
+void matmul_native(const float *a, const float *b, float *c, int m, int n,
+                   int k) {
+  float *dev_a = nullptr;
+  auto err = cudaMalloc(&dev_a, m * n * sizeof(float));
+  err = cudaMemcpy(dev_a, a, m * n * sizeof(float), cudaMemcpyHostToDevice);
+  
+  float *dev_b = nullptr;
+  err = cudaMalloc(&dev_b, n * k * sizeof(float));
+  err = cudaMemcpy(dev_b, b, n * k * sizeof(float), cudaMemcpyHostToDevice);
 
-void matmul_0(const float *a, const float *b, float *c, int m, int n, int k) {}
+  float *dev_c = nullptr;
+  err = cudaMalloc(&dev_c, m * k * sizeof(float));
+  err = cudaMemcpy(dev_c, c, m * k * sizeof(float), cudaMemcpyHostToDevice);
+
+  const int THREAD_COUNT = 32;
+  dim3 block(THREAD_COUNT, THREAD_COUNT);
+  dim3 grid((m + block.x - 1) / block.x, (k + block.y - 1) / block.y);
+
+  matmul_native_kernel<<<block, grid>>>(dev_a, dev_b, dev_c, m, n, k);
+
+  cudaMemcpy(c, dev_c, m * k * sizeof(float), cudaMemcpyDeviceToHost);
+}
+
+void matmul_sharedmemory(const float *a, const float *b, float *c, int m, int n, int k) {}
