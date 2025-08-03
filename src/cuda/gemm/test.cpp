@@ -16,9 +16,7 @@ TEST(MatMulTest, matmul_native) {
   ref_matmul(host_a, host_b, host_cpu_c, m, n, k);
   matmul_native(host_a.data(), host_b.data(), host_gpu_c.data(), m, n, k);
 
-  for (int i = 0; i < host_gpu_c.size(); ++i) {
-    EXPECT_FLOAT_EQ(host_cpu_c[i], host_gpu_c[i]);
-  }
+  compare_matrix(host_cpu_c, host_gpu_c);
 }
 
 int main(int argc, char **argv) {

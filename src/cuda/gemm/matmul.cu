@@ -64,9 +64,9 @@ void matmul_native(const float *a, const float *b, float *c, int m, int n,
 
   const int THREAD_COUNT = 32;
   dim3 block(THREAD_COUNT, THREAD_COUNT);
-  dim3 grid((m + block.x - 1) / block.x, (k + block.y - 1) / block.y);
+  dim3 grid((k + block.x - 1) / block.x, (m + block.y - 1) / block.y);
 
-  matmul_native_kernel<<<block, grid>>>(dev_a, dev_b, dev_c, m, n, k);
+  matmul_native_kernel<<<grid,block>>>(dev_a, dev_b, dev_c, m, n, k);
 
   cudaMemcpy(c, dev_c, m * k * sizeof(float), cudaMemcpyDeviceToHost);
 }

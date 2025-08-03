@@ -1,4 +1,6 @@
+#include <cstdlib>
 #include <format>
+#include <gtest/gtest.h>
 #include <iostream>
 #include <random>
 #include <vector>
@@ -49,6 +51,19 @@ inline void print_matmul(const float *matrix, int m, int n) {
         std::cout << std::format("{} ]\n", matrix[i * n + j]);
       else
         std::cout << std::format("{}, ", matrix[i * n + j]);
+    }
+  }
+}
+
+inline void compare_matrix(const std::vector<float>& ref_data, const std::vector<float>& data, const float tolerance = 0.0001f) {
+  if (ref_data.size() != data.size()) {
+    std::cerr << std::format("Error shape not same!\n");
+  }
+  int size = data.size();
+  for (int i = 0; i < size; ++ i) {
+    if (std::abs(ref_data[i] - data[i]) > tolerance) {
+      std::cout << std::format("Ref: {} Compare: {} Index: {}\n", ref_data[i], data[i], i);
+      ASSERT_EQ(false, true);
     }
   }
 }
