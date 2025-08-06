@@ -74,7 +74,7 @@ __global__ void matmul_sharedmemory_threadcoarsening_kernel(
     float *__restrict__ matrix_c, int m, int n, int k) {
   extern __shared__ float shared_mem[];
   float *shmem_a = shared_mem;
-  float *shmem_b = &shared_mem[BLOCK_SIZE * BLOCK_SIZE * COARSE_FACTOR];
+  float *shmem_b = &shared_mem[BLOCK_SIZE * BLOCK_SIZE];
 
   int col_start = blockIdx.x * BLOCK_SIZE * COARSE_FACTOR + threadIdx.x;
   int row = blockIdx.y * BLOCK_SIZE + threadIdx.y;
@@ -100,16 +100,16 @@ __global__ void matmul_sharedmemory_threadcoarsening_kernel(
 
 #pragma unroll
     for (int c = 0; c < COARSE_FACTOR; ++c) {
-      int col = col_start + c * BLOCK_SIZE + tile_col;
+      int col = col_start + c * BLOCK_SIZE;
       int b_row = ph * BLOCK_SIZE + tile_row;
       int b_idx = b_row * k + col;
 
       if (b_row < n && col < k) {
-        shmem_b[c * BLOCK_SIZE * BLOCK_SIZE + tile_row * BLOCK_SIZE +
-                tile_col] = matrix_b[b_idx];
+        shmem_b[c * BLOCK_SIZE * BLOCK_SIZE + tile_col * BLOCK_SIZE +
+                tile_row] = matrix_b[b_idx];
       } else {
-        shmem_b[c * BLOCK_SIZE * BLOCK_SIZE + tile_row * BLOCK_SIZE +
-                tile_col] = 0.0f;
+        shmem_b[c * BLOCK_SIZE * BLOCK_SIZE + tile_col * BLOCK_SIZE +
+                tile_row] = 0.0f;
       }
     }
 
@@ -120,7 +120,7 @@ __global__ void matmul_sharedmemory_threadcoarsening_kernel(
       for (int i = 0; i < BLOCK_SIZE; ++i) {
         sum[c] +=
             shmem_a[tile_row * BLOCK_SIZE + i] *
-            shmem_b[c * BLOCK_SIZE * BLOCK_SIZE + i * BLOCK_SIZE + tile_col];
+            shmem_b[c * BLOCK_SIZE * BLOCK_SIZE + tile_col * BLOCK_SIZE + i];
       }
     }
     __syncthreads();
@@ -226,11 +226,13 @@ void matmul_sharedmemory_threadcoarsening(const float *matrix_a,
   const int BLOCK_SIZE = 32;
   const int COARSE_FACTOR = 4;
   dim3 block(BLOCK_SIZE, BLOCK_SIZE);
-  dim3 grid((k + block.x - 1) / block.x, (m + block.y - 1) / block.y);
+  dim3 grid((k + BLOCK_SIZE * COARSE_FACTOR - 1) / (BLOCK_SIZE * COARSE_FACTOR),
+            (m + block.y - 1) / block.y);
 
   // calculate shared memory size
   auto shared_mem_size =
-      (1 + COARSE_FACTOR) * BLOCK_SIZE * BLOCK_SIZE * sizeof(float);
+      (BLOCK_SIZE * BLOCK_SIZE + BLOCK_SIZE * BLOCK_SIZE * COARSE_FACTOR) *
+      sizeof(float);
 
   matmul_sharedmemory_threadcoarsening_kernel<BLOCK_SIZE, COARSE_FACTOR>
       <<<grid, block, shared_mem_size>>>(dev_a, dev_b, dev_c, m, n, k);
