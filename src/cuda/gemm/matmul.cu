@@ -223,6 +223,7 @@ __global__ void matmul_shared_memory_threadsoarsening_prefetch_kernel(
         FETCH_FLOAT4(As[0][0][THREAD_SIZE_Y * ty + thread_y]);
   }
 
+#pragma unroll
   // load b from shared memory to register
   for (int thread_x = 0; thread_x < THREAD_SIZE_X; thread_x += 4) {
     FETCH_FLOAT4(frag_b[0][thread_x]) =
@@ -320,22 +321,21 @@ __global__ void matmul_shared_memory_threadsoarsening_prefetch_kernel(
     for (int thread_y = 0; thread_y < THREAD_SIZE_Y; ++thread_y) {
 #pragma unroll
       for (int thread_x = 0; thread_x < THREAD_SIZE_X; ++thread_x) {
-        accum[thread_y][thread_x] = frag_a[1][thread_y] * frag_b[1][thread_x];
-      }
-    }
-
-// store back to C
-#pragma unroll
-    for (int thread_y = 0; thread_y < THREAD_SIZE_Y; ++thread_y) {
-#pragma unroll
-      for (int thread_x = 0; thread_x < THREAD_SIZE_X; ++thread_x) {
-        FETCH_FLOAT4(
-            C[OFFSET(BLOCK_SIZE_M * by + ty * THREAD_SIZE_Y + thread_y,
-                     BLOCK_SIZE_N * bx + tx * THREAD_SIZE_X + thread_x, N)]) =
-            FETCH_FLOAT4(accum[thread_y][thread_x]);
+        accum[thread_y][thread_x] += frag_a[1][thread_y] * frag_b[1][thread_x];
       }
     }
   } while (tile_idx < K);
+// store back to C
+#pragma unroll
+  for (int thread_y = 0; thread_y < THREAD_SIZE_Y; ++thread_y) {
+#pragma unroll
+    for (int thread_x = 0; thread_x < THREAD_SIZE_X; ++thread_x) {
+      FETCH_FLOAT4(
+          C[OFFSET(BLOCK_SIZE_M * by + ty * THREAD_SIZE_Y + thread_y,
+                   BLOCK_SIZE_N * bx + tx * THREAD_SIZE_X + thread_x, N)]) =
+          FETCH_FLOAT4(accum[thread_y][thread_x]);
+    }
+  }
 }
 
 void matmul_native(const float *a, const float *b, float *c, int m, int n,

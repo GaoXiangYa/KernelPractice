@@ -11,7 +11,7 @@ Practice how to write high performance kernels
 - [ ] Linear
 - [ ] Split
 - [ ] Cat
-- [ ] MatMul
+- [x] MatMul
 - [ ] SoftMax
 - [ ] Gelu
 - [ ] Silu
