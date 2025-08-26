@@ -1,6 +1,4 @@
 #include "matmul.cuh"
-#include <__clang_cuda_builtin_vars.h>
-#include <__clang_cuda_runtime_wrapper.h>
 #include <cstdio>
 #include <cuda_runtime.h>
 
