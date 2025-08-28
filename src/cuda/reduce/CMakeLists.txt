@@ -1,4 +1,4 @@
-add_library(reduce_cuda STATIC ${CMAKE_CURRENT_SOURCE_DIR}/reduce_v0.cu)
+add_library(reduce_cuda STATIC ${CMAKE_CURRENT_SOURCE_DIR}/reduce_v0.cu ${CMAKE_CURRENT_SOURCE_DIR}/reduce_v1.cu)
 target_include_directories(reduce_cuda PUBLIC ${CUDA_INCLUDE_DIRS})
 
 add_executable(reduce_test ${CMAKE_CURRENT_SOURCE_DIR}/reduce_test.cpp)
