@@ -8,3 +8,6 @@ CompileFlags:
     - -arch=*
     - -rdc=*
     - --options-file
+  Diagnostics:
+    Suppress: 
+      - cuda-attr-nohostdev
