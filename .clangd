@@ -1,6 +1,7 @@
 CompileFlags:
   Add:     # 要额外添加到 Clang 的 NVCC 没有的参数
     - --no-cuda-version-check
+    - -nocudalib
   Remove:  # 移除 Clang 不认识的 NVCC 参数
     - -forward-unknown-to-host-compiler
     - --expt-*
@@ -8,6 +9,3 @@ CompileFlags:
     - -arch=*
     - -rdc=*
     - --options-file
-  Diagnostics:
-    Suppress: 
-      - cuda-attr-nohostdev

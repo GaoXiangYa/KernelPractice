@@ -1,4 +1,5 @@
 #include <cuda_runtime.h>
+#include <cstdlib>
 
 
 template<int SHARED_MEM_SIZE>
@@ -38,7 +39,7 @@ void reduce_v1(float *input, size_t input_count, float *output) {
   err = cudaMalloc(&output_dev, output_size);
   cudaMemcpy(output_dev, output, output_size,
              cudaMemcpyKind::cudaMemcpyHostToDevice);
-  float *output_host = (float *)malloc(output_size);
+  float *output_host = (float *)std::malloc(output_size);
 
   reduce_kernel_v1<THREAD_COUNT><<<BLOCK_COUNT, THREAD_COUNT>>>(input_dev, output_dev);
 
