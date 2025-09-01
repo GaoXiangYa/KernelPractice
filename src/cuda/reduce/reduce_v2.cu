@@ -1,26 +1,26 @@
 #include <cuda_runtime.h>
+#include <cstdio>
 
 template <int SHARED_MEM_SIZE, int COARSE_FACTOR>
 __global__ void reduce_kernel_v2(float *input, float *output) {
   __shared__ float shmem[SHARED_MEM_SIZE];
 
-  const int segment = 2 * COARSE_FACTOR * blockDim.x * blockIdx.x;
+  const int segment = COARSE_FACTOR * blockDim.x * blockIdx.x;
   const int tx = threadIdx.x;
   const int i = segment + tx;
-  float sum = 0.0f;
+  float sum = input[i];
 
 #pragma unroll
-  for (int tile = 1; tile <= COARSE_FACTOR * 2; ++tile) {
-    sum += input[i + tile];
+  for (int tile = 1; tile < COARSE_FACTOR; ++tile) {
+    sum += input[i + tile * SHARED_MEM_SIZE];
   }
   shmem[tx] = sum;
-  __syncthreads();
 
   for (int stride = blockDim.x / 2; stride >= 1; stride >>= 1) {
+    __syncthreads();
     if (tx < stride) {
       shmem[tx] += shmem[tx + stride];
     }
-    __syncthreads();
   }
 
   if (tx == 0) {
@@ -31,8 +31,8 @@ __global__ void reduce_kernel_v2(float *input, float *output) {
 void reduce_v2(float *input, size_t input_count, float *output) {
   size_t input_size = input_count * sizeof(float);
   const int THREAD_COUNT = 32;
-  const int COARSE_FACTOR = 2;
-  const int BLOCK_COUNT = (input_count + THREAD_COUNT - 1) / THREAD_COUNT;
+  const int COARSE_FACTOR = 4;
+  const int BLOCK_COUNT = (input_count + THREAD_COUNT * COARSE_FACTOR- 1) / (THREAD_COUNT * COARSE_FACTOR);
 
   size_t output_size = BLOCK_COUNT * sizeof(float);
 
