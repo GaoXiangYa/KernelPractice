@@ -1,5 +1,5 @@
 #include "reduce.h"
-#include "test_util.h"
+#include "util.h"
 #include <gtest/gtest.h>
 #include <vector>
 

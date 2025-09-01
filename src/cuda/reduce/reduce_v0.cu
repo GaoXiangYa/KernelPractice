@@ -1,7 +1,11 @@
+#include "benchmark.cuh"
 #include "reduce.h"
+#include "util.h"
+#include <csignal>
 #include <cstddef>
 #include <cstdio>
 #include <cuda_runtime.h>
+#include <vector>
 
 __global__ void reduce_kernel_v0(float *input, float *output) {
   const int segment = blockIdx.x * blockDim.x;
@@ -47,4 +51,33 @@ __host__ void reduce_v0(float *input, size_t input_count, float *output) {
   }
 
   *output = sum;
+}
+
+void reduce_v0_benchmark() {
+  const int count = 4096 * 2 * 2;
+  const int input_size = count * sizeof(float);
+  const int repeat = 10000;
+
+  std::vector<float> input(count, 0.0f);
+  init_random(input);
+  const int THREAD_COUNT = 32;
+  const int BLOCK_COUNT = (count + THREAD_COUNT - 1) / (THREAD_COUNT);
+  std::vector<float> output(BLOCK_COUNT, 0.0f);
+
+  float *input_dev = nullptr;
+  auto err = cudaMalloc(&input_dev, input_size);
+  float *output_dev = nullptr;
+  err = cudaMalloc(&output_dev, BLOCK_COUNT * sizeof(float));
+
+  cudaMemcpy(input_dev, input.data(), input_size,
+             cudaMemcpyKind::cudaMemcpyHostToDevice);
+  cudaMemcpy(output_dev, output.data(), BLOCK_COUNT * sizeof(float),
+             cudaMemcpyKind::cudaMemcpyHostToDevice);
+
+  double flops = 1.0 * count;
+  double bytes = 2.0 * input_size;
+  benchmarkKernel("reduce_kernel_v0", BLOCK_COUNT, THREAD_COUNT, flops, bytes,
+                  repeat, reduce_kernel_v0, input_dev, output_dev);
+  // BENCHMARK_KERNEL(reduce_kernel_v0, BLOCK_COUNT, THREAD_COUNT, flops, bytes,
+  //                repeat, input_dev, output_dev);
 }

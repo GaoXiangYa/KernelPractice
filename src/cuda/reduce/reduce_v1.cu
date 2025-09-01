@@ -1,14 +1,16 @@
-#include <cuda_runtime.h>
+#include "benchmark.cuh"
+#include "util.h"
 #include <cstdlib>
+#include <cuda_runtime.h>
+#include <vector>
 
-
-template<int SHARED_MEM_SIZE>
+template <int SHARED_MEM_SIZE>
 __global__ void reduce_kernel_v1(float *input, float *output) {
   __shared__ float shmem[SHARED_MEM_SIZE];
 
   const int tid = blockIdx.x * blockDim.x + threadIdx.x;
   const int i = threadIdx.x;
-  
+
   shmem[threadIdx.x] = input[tid];
   __syncthreads();
 
@@ -41,7 +43,8 @@ void reduce_v1(float *input, size_t input_count, float *output) {
              cudaMemcpyKind::cudaMemcpyHostToDevice);
   float *output_host = (float *)std::malloc(output_size);
 
-  reduce_kernel_v1<THREAD_COUNT><<<BLOCK_COUNT, THREAD_COUNT>>>(input_dev, output_dev);
+  reduce_kernel_v1<THREAD_COUNT>
+      <<<BLOCK_COUNT, THREAD_COUNT>>>(input_dev, output_dev);
 
   cudaMemcpy(output_host, output_dev, output_size,
              cudaMemcpyKind::cudaMemcpyDeviceToHost);
@@ -52,4 +55,32 @@ void reduce_v1(float *input, size_t input_count, float *output) {
   }
 
   *output = sum;
+}
+
+void reduce_v1_benchmark() {
+  const int count = 4096 * 2 * 2;
+  const int input_size = count * sizeof(float);
+  const int repeat = 10000;
+
+  std::vector<float> input(count, 0.0f);
+  init_random(input);
+  const int THREAD_COUNT = 128;
+  const int BLOCK_COUNT = (count + THREAD_COUNT - 1) / (THREAD_COUNT);
+  std::vector<float> output(BLOCK_COUNT, 0.0f);
+
+  float *input_dev = nullptr;
+  auto err = cudaMalloc(&input_dev, input_size);
+  float *output_dev = nullptr;
+  err = cudaMalloc(&output_dev, BLOCK_COUNT * sizeof(float));
+
+  cudaMemcpy(input_dev, input.data(), input_size,
+             cudaMemcpyKind::cudaMemcpyHostToDevice);
+  cudaMemcpy(output_dev, output.data(), BLOCK_COUNT * sizeof(float),
+             cudaMemcpyKind::cudaMemcpyHostToDevice);
+
+  double flops = 1.0 * count;
+  double bytes = 2.0 * input_size;
+
+  benchmarkKernel("reduce_kernel_v0<32>", BLOCK_COUNT, THREAD_COUNT, flops, bytes,
+                  repeat, reduce_kernel_v1<THREAD_COUNT>, input_dev, output_dev);
 }
