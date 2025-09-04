@@ -1,20 +1,27 @@
+#include <cstddef>
 #include <cuda_runtime.h>
-#include <vector>
-#include "util.h"
 #include "benchmark.cuh"
+#include "util.h"
 
+template <size_t BLOCK_SIZE>
 __device__ void wrapReduce(volatile float *cache, int tid) {
-  cache[tid] += cache[tid + 32];
-  cache[tid] += cache[tid + 16];
-  cache[tid] += cache[tid + 8];
-  cache[tid] += cache[tid + 4];
-  cache[tid] += cache[tid + 2];
-  cache[tid] += cache[tid + 1];
+  if constexpr (BLOCK_SIZE >= 64)
+    cache[tid] += cache[tid + 32];
+  if constexpr (BLOCK_SIZE >= 32)
+    cache[tid] += cache[tid + 16];
+  if constexpr (BLOCK_SIZE >= 16)
+    cache[tid] += cache[tid + 8];
+  if constexpr (BLOCK_SIZE >= 8)
+    cache[tid] += cache[tid + 4];
+  if constexpr (BLOCK_SIZE >= 4)
+    cache[tid] += cache[tid + 2];
+  if constexpr (BLOCK_SIZE >= 2)
+    cache[tid] += cache[tid + 1];
 }
 
-template <int SHARED_MEM_SIZE, int COARSE_FACTOR>
-__global__ void reduce_kernel_v3(float *input, float *output) {
-  __shared__ float shmem[SHARED_MEM_SIZE];
+template <size_t BLOCK_SIZE, int COARSE_FACTOR>
+__global__ void reduce_kernel_v4(float *input, float *output) {
+  __shared__ float shmem[BLOCK_SIZE];
 
   const int segment = COARSE_FACTOR * blockDim.x * blockIdx.x;
   const int tx = threadIdx.x;
@@ -23,19 +30,34 @@ __global__ void reduce_kernel_v3(float *input, float *output) {
 
 #pragma unroll
   for (int tile = 1; tile < COARSE_FACTOR; ++tile) {
-    sum += input[i + tile * SHARED_MEM_SIZE];
+    sum += input[i + tile * BLOCK_SIZE];
   }
   shmem[tx] = sum;
+  __syncthreads();
 
-  for (int stride = blockDim.x / 2; stride > 32; stride >>= 1) {
-    __syncthreads();
-    if (tx < stride) {
-      shmem[tx] += shmem[tx + stride];
+  if constexpr (BLOCK_SIZE >= 512) {
+    if (tx < 256) {
+      shmem[tx] += shmem[tx + 256];
     }
+    __syncthreads();
+  }
+
+  if constexpr (BLOCK_SIZE >= 256) {
+    if (tx < 128) {
+      shmem[tx] += shmem[tx + 128];
+    }
+    __syncthreads();
+  }
+
+  if constexpr (BLOCK_SIZE >= 128) {
+    if (tx < 64) {
+      shmem[tx] += shmem[tx + 64];
+    }
+    __syncthreads();
   }
 
   if (tx < 32) {
-    wrapReduce(shmem, tx);
+    wrapReduce<BLOCK_SIZE>(shmem, tx);
   }
 
   if (tx == 0) {
@@ -43,7 +65,7 @@ __global__ void reduce_kernel_v3(float *input, float *output) {
   }
 }
 
-void reduce_v3(float *input, size_t input_count, float *output) {
+void reduce_v4(float *input, size_t input_count, float *output) {
   size_t input_size = input_count * sizeof(float);
   const int THREAD_COUNT = 32;
   const int COARSE_FACTOR = 4;
@@ -63,7 +85,7 @@ void reduce_v3(float *input, size_t input_count, float *output) {
              cudaMemcpyKind::cudaMemcpyHostToDevice);
   float *output_host = (float *)std::malloc(output_size);
 
-  reduce_kernel_v3<THREAD_COUNT, COARSE_FACTOR>
+  reduce_kernel_v4<THREAD_COUNT, COARSE_FACTOR>
       <<<BLOCK_COUNT, THREAD_COUNT>>>(input_dev, output_dev);
 
   cudaMemcpy(output_host, output_dev, output_size,
@@ -77,7 +99,7 @@ void reduce_v3(float *input, size_t input_count, float *output) {
   *output = sum;
 }
 
-void reduce_v3_benchmark() {
+void reduce_v4_benchmark() {
   const size_t count = 32 * 1024 * 1024;
   const size_t input_size = count * sizeof(float);
   const int repeat = 10;
@@ -103,7 +125,7 @@ void reduce_v3_benchmark() {
   double flops = 1.0 * count;
   double bytes = 2.0 * input_size;
 
-  benchmarkKernel("reduce_kernel_v3<32, 32>", BLOCK_COUNT, THREAD_COUNT, flops,
-                  bytes, repeat, reduce_kernel_v3<THREAD_COUNT, COARSE_FACTOR>,
+  benchmarkKernel("reduce_kernel_v4<256, 8>", BLOCK_COUNT, THREAD_COUNT, flops,
+                  bytes, repeat, reduce_kernel_v4<THREAD_COUNT, COARSE_FACTOR>,
                   input_dev, output_dev);
 }

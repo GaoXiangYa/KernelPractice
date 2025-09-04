@@ -1,5 +1,6 @@
 #include "benchmark.cuh"
 #include "util.h"
+#include <cstddef>
 #include <cstdio>
 #include <cuda_runtime.h>
 #include <vector>
@@ -66,9 +67,9 @@ void reduce_v2(float *input, size_t input_count, float *output) {
 }
 
 void reduce_v2_benchmark() {
-  const int count = 4096 * 2 * 2;
-  const int input_size = count * sizeof(float);
-  const int repeat = 10000;
+  const size_t count = 32 * 1024 * 1024;
+  const size_t input_size = count * sizeof(float);
+  const int repeat = 1;
 
   std::vector<float> input(count, 0.0f);
   init_random(input);
@@ -91,7 +92,7 @@ void reduce_v2_benchmark() {
   double flops = 1.0 * count;
   double bytes = 2.0 * input_size;
 
-  benchmarkKernel("reduce_kernel_v0<32, 32>", BLOCK_COUNT, THREAD_COUNT, flops,
+  benchmarkKernel("reduce_kernel_v2<32, 32>", BLOCK_COUNT, THREAD_COUNT, flops,
                   bytes, repeat, reduce_kernel_v2<THREAD_COUNT, COARSE_FACTOR>,
                   input_dev, output_dev);
 }

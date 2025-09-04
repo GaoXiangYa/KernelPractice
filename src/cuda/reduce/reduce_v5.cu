@@ -1,49 +1,71 @@
+#include <cstddef>
 #include <cuda_runtime.h>
 #include <vector>
 #include "util.h"
 #include "benchmark.cuh"
 
-__device__ void wrapReduce(volatile float *cache, int tid) {
-  cache[tid] += cache[tid + 32];
-  cache[tid] += cache[tid + 16];
-  cache[tid] += cache[tid + 8];
-  cache[tid] += cache[tid + 4];
-  cache[tid] += cache[tid + 2];
-  cache[tid] += cache[tid + 1];
+#define WARP_SIZE 32
+
+template <size_t BLOCK_SIZE>
+__device__ __forceinline__ float warpReduceSum(float sum) {
+  size_t mask = __activemask();
+  if constexpr (BLOCK_SIZE >= 32) {
+    sum += __shfl_down_sync(mask, sum, 16);
+  }
+  if constexpr (BLOCK_SIZE >= 16) {
+    sum += __shfl_down_sync(mask, sum, 8);
+  }
+  if constexpr (BLOCK_SIZE >= 8) {
+    sum += __shfl_down_sync(mask, sum, 4);
+  }
+  if constexpr (BLOCK_SIZE >= 4) {
+    sum += __shfl_down_sync(mask, sum, 2);
+  }
+  if constexpr (BLOCK_SIZE >= 2) {
+    sum += __shfl_down_sync(mask, sum, 1);
+  }
+  return sum;
 }
 
-template <int SHARED_MEM_SIZE, int COARSE_FACTOR>
-__global__ void reduce_kernel_v3(float *input, float *output) {
-  __shared__ float shmem[SHARED_MEM_SIZE];
-
+template <size_t BLOCK_SIZE, int COARSE_FACTOR>
+__global__ void reduce_kernel_v5(const float *input, float *output, int N) {
   const int segment = COARSE_FACTOR * blockDim.x * blockIdx.x;
   const int tx = threadIdx.x;
-  const int i = segment + tx;
-  float sum = input[i];
+  const int base = segment + tx;
+  float sum = 0.0f;
 
 #pragma unroll
-  for (int tile = 1; tile < COARSE_FACTOR; ++tile) {
-    sum += input[i + tile * SHARED_MEM_SIZE];
-  }
-  shmem[tx] = sum;
-
-  for (int stride = blockDim.x / 2; stride > 32; stride >>= 1) {
-    __syncthreads();
-    if (tx < stride) {
-      shmem[tx] += shmem[tx + stride];
+  for (int tile = 0; tile < COARSE_FACTOR; ++tile) {
+    int idx = base + tile * BLOCK_SIZE;
+    if (idx < N) {
+      sum += input[idx];
     }
   }
 
-  if (tx < 32) {
-    wrapReduce(shmem, tx);
+  static __shared__ float warp_level_sums[WARP_SIZE];
+  const int lane_id = tx & (WARP_SIZE - 1);
+  const int wrap_id = tx >> 5;
+
+  sum = warpReduceSum<BLOCK_SIZE>(sum);
+
+  if (lane_id == 0) {
+    warp_level_sums[wrap_id] = sum;
+  }
+  __syncthreads();
+
+  sum = (threadIdx.x < blockDim.x / WARP_SIZE) ? warp_level_sums[lane_id] : 0;
+
+  // final reduce using first wrap
+  if (wrap_id == 0) {
+    sum = warpReduceSum<BLOCK_SIZE / WARP_SIZE>(sum);
   }
 
   if (tx == 0) {
-    output[blockIdx.x] = shmem[0];
+    output[blockIdx.x] = sum;
   }
 }
 
-void reduce_v3(float *input, size_t input_count, float *output) {
+void reduce_v5(float *input, size_t input_count, float *output) {
   size_t input_size = input_count * sizeof(float);
   const int THREAD_COUNT = 32;
   const int COARSE_FACTOR = 4;
@@ -63,8 +85,8 @@ void reduce_v3(float *input, size_t input_count, float *output) {
              cudaMemcpyKind::cudaMemcpyHostToDevice);
   float *output_host = (float *)std::malloc(output_size);
 
-  reduce_kernel_v3<THREAD_COUNT, COARSE_FACTOR>
-      <<<BLOCK_COUNT, THREAD_COUNT>>>(input_dev, output_dev);
+  reduce_kernel_v5<THREAD_COUNT, COARSE_FACTOR>
+      <<<BLOCK_COUNT, THREAD_COUNT>>>(input_dev, output_dev, input_count);
 
   cudaMemcpy(output_host, output_dev, output_size,
              cudaMemcpyKind::cudaMemcpyDeviceToHost);
@@ -77,15 +99,15 @@ void reduce_v3(float *input, size_t input_count, float *output) {
   *output = sum;
 }
 
-void reduce_v3_benchmark() {
+void reduce_v5_benchmark() {
   const size_t count = 32 * 1024 * 1024;
   const size_t input_size = count * sizeof(float);
-  const int repeat = 10;
+  const int repeat = 1;
 
   std::vector<float> input(count, 0.0f);
   init_random(input);
-  const int THREAD_COUNT = 256;
-  const int COARSE_FACTOR = 8;
+  const int THREAD_COUNT = 64;
+  const int COARSE_FACTOR = 4;
   const int BLOCK_COUNT = (count + THREAD_COUNT * COARSE_FACTOR - 1) /
                           (THREAD_COUNT * COARSE_FACTOR);
   std::vector<float> output(BLOCK_COUNT, 0.0f);
@@ -103,7 +125,7 @@ void reduce_v3_benchmark() {
   double flops = 1.0 * count;
   double bytes = 2.0 * input_size;
 
-  benchmarkKernel("reduce_kernel_v3<32, 32>", BLOCK_COUNT, THREAD_COUNT, flops,
-                  bytes, repeat, reduce_kernel_v3<THREAD_COUNT, COARSE_FACTOR>,
-                  input_dev, output_dev);
+  benchmarkKernel("reduce_kernel_v5<64, 4>", BLOCK_COUNT, THREAD_COUNT, flops,
+                  bytes, repeat, reduce_kernel_v5<THREAD_COUNT, COARSE_FACTOR>,
+                  input_dev, output_dev, count);
 }

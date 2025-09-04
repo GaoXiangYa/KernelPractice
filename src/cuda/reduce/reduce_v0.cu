@@ -54,9 +54,9 @@ __host__ void reduce_v0(float *input, size_t input_count, float *output) {
 }
 
 void reduce_v0_benchmark() {
-  const int count = 4096 * 2 * 2;
-  const int input_size = count * sizeof(float);
-  const int repeat = 10000;
+  const size_t count = 32 * 1024 * 1024;
+  const size_t input_size = count * sizeof(float);
+  const int repeat = 1;
 
   std::vector<float> input(count, 0.0f);
   init_random(input);
