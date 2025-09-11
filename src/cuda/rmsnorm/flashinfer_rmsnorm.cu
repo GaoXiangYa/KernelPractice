@@ -59,8 +59,8 @@ void flashinfer_rmsnorm_benchmark() {
   CHECK_CUDA(cudaMemcpy(output_dev, output.data(), output_size,
                         cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-  double flops = 1.0 * input_len;
-  double bytes = 5.0 * input_size;
+  double flops = 5.0 * input_len;
+  double bytes = 3.0 * input_size;
   const int repeat = 100;
 
   cudaEvent_t start, stop;

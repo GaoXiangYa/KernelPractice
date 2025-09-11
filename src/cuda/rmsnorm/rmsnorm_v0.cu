@@ -4,8 +4,8 @@
 #include <cmath>
 #include <cstdio>
 #include <cuda_runtime.h>
-#include <vector>
 #include <iostream>
+#include <vector>
 
 template <int SHAEDMEM_SIZE> __device__ void warpReduceSum(float &sum) {
   auto mask = __activemask();
@@ -85,7 +85,7 @@ __global__ void square(float *input, float *output, const int input_len) {
 }
 
 __global__ void norm(const float *input, float *output, const int input_len,
-                     float rms) {
+                     float *rms) {
   const int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
   auto input_vec4 = std::bit_cast<float4 *>(input);
@@ -95,18 +95,23 @@ __global__ void norm(const float *input, float *output, const int input_len,
     float4 in_val = input_vec4[tid];
     float4 out_val = {0.0, 0.0, 0.0, 0.0};
 
-    out_val.x = in_val.x / rms;
-    out_val.y = in_val.y / rms;
-    out_val.z = in_val.z / rms;
-    out_val.w = in_val.w / rms;
+    out_val.x = in_val.x / *rms;
+    out_val.y = in_val.y / *rms;
+    out_val.z = in_val.z / *rms;
+    out_val.w = in_val.w / *rms;
 
     output_vec4[tid] = out_val;
   }
 
   int base = (input_len / 4) * 4;
   for (int i = base + tid; i < input_len; i += blockDim.x * blockIdx.x) {
-    output[i] = input[i] / rms;
+    output[i] = input[i] / *rms;
   }
+}
+
+__global__ void calculateRms(float *reduce_sum, const int input_len,
+                             const float eps, float *rms) {
+  *rms = std::sqrt(*reduce_sum / input_len + eps);
 }
 
 void rmsnorm_v0(float *input, float *output, const int input_len,
@@ -140,19 +145,20 @@ void rmsnorm_v0(float *input, float *output, const int input_len,
                           (THREAD_COUNT * COARSE_FACTOR);
   float *reduce_sum_dev = nullptr;
   CHECK_CUDA(cudaMalloc(&reduce_sum_dev, sizeof(float)));
+
   reduceSum<THREAD_COUNT, COARSE_FACTOR>
       <<<BLOCK_COUNT, THREAD_COUNT>>>(square_output, reduce_sum_dev, input_len);
-  float reduce_sum = 0.0f;
-  CHECK_CUDA(cudaMemcpy(&reduce_sum, reduce_sum_dev, sizeof(float),
-                        cudaMemcpyKind::cudaMemcpyDeviceToHost));
-  float rms = std::sqrt(reduce_sum / input_len + eps);
+
+  float *rms_dev = nullptr;
+  CHECK_CUDA(cudaMalloc(&rms_dev, sizeof(float)));
+  calculateRms<<<1, 1>>>(reduce_sum_dev, input_len, eps, rms_dev);
 
   // step3 norm
   const int NORM_THREAD_COUNT = 32;
   const int NORM_BLOCK_COUNT =
       (input_len + NORM_THREAD_COUNT - 1) / NORM_THREAD_COUNT;
   norm<<<NORM_BLOCK_COUNT, NORM_THREAD_COUNT>>>(input_dev, output_dev,
-                                                input_len, rms);
+                                                input_len, rms_dev);
   cudaMemcpy(output, output_dev, output_size,
              cudaMemcpyKind::cudaMemcpyDeviceToHost);
 }
@@ -192,8 +198,12 @@ void rmsnorm_v0_benchmark() {
   const int COARSE_FACTOR = 4;
   const int BLOCK_COUNT = (input_len + THREAD_COUNT * COARSE_FACTOR - 1) /
                           (THREAD_COUNT * COARSE_FACTOR);
+
   float *reduce_sum_dev = nullptr;
   CHECK_CUDA(cudaMalloc(&reduce_sum_dev, sizeof(float)));
+  float *rms_dev = nullptr;
+  CHECK_CUDA(cudaMalloc(&rms_dev, sizeof(float)));
+
   const int NORM_THREAD_COUNT = 32;
   const int NORM_BLOCK_COUNT =
       (input_len + NORM_THREAD_COUNT - 1) / NORM_THREAD_COUNT;
@@ -209,14 +219,12 @@ void rmsnorm_v0_benchmark() {
     // step2 calculate rms
     reduceSum<THREAD_COUNT, COARSE_FACTOR><<<BLOCK_COUNT, THREAD_COUNT>>>(
         square_output, reduce_sum_dev, input_len);
-    float reduce_sum = 0.0f;
-    CHECK_CUDA(cudaMemcpy(&reduce_sum, reduce_sum_dev, sizeof(float),
-                          cudaMemcpyKind::cudaMemcpyDeviceToHost));
-    float rms = std::sqrt(reduce_sum / input_len + eps);
+
+    calculateRms<<<1, 1>>>(reduce_sum_dev, input_len, eps, rms_dev);
 
     // step3 norm
     norm<<<NORM_BLOCK_COUNT, NORM_THREAD_COUNT>>>(input_dev, output_dev,
-                                                  input_len, rms);
+                                                  input_len, rms_dev);
   }
   cudaEventRecord(stop);
   cudaEventSynchronize(stop);
