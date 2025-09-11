@@ -1,7 +1,14 @@
 #include "reduce.h"
-#include "util.h"
 #include <gtest/gtest.h>
+#include <numeric>
 #include <vector>
+#include "util.h"
+
+template<typename T = float>
+T reduce_ref(const std::vector<T>& input) {
+  T init = 0;
+  return std::accumulate(input.begin(), input.end(), init);
+}
 
 TEST(recude, reduce_v0) {
   const int size = 4096;
