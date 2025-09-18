@@ -6,6 +6,7 @@
 
 __device__ float warpReduceSum(float sum) {
   auto mask = __activemask();
+#pragma unroll
   for (int offset = warpSize / 2; offset > 0; offset >>= 1) {
     sum += __shfl_xor_sync(mask, sum, offset);
   }
@@ -54,7 +55,7 @@ __global__ void rmsnorm_v1_kernel(const float *input, float *output,
   __syncthreads();
 
   // step3 calculate rms
-  float rms = std::sqrt(warp_level_sums[0] / input_len + eps);
+  float rms = sqrtf(warp_level_sums[0] / input_len + eps);
 
   // step4 calculate output
   for (int r = 0; r < round; ++r) {
