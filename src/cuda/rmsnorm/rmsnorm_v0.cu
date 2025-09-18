@@ -237,7 +237,7 @@ void rmsnorm_v0_benchmark() {
   double bytes = 5.0 * input_len * sizeof(float);
   double bandwidth = bytes / elapsed_ms / 1e9;
 
-  double flops = 4.0 * input_len;
+  double flops = 3*input_len;
   double gflops = flops / elapsed_ms / 1e9;
 
   printf("Input size: %d\n", input_len);

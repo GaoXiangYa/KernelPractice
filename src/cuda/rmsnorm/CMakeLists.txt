@@ -1,7 +1,8 @@
 add_library(rmsnorm_cuda 
             STATIC 
             ${CMAKE_CURRENT_SOURCE_DIR}/flashinfer_rmsnorm.cu 
-            ${CMAKE_CURRENT_SOURCE_DIR}/rmsnorm_v0.cu)
+            ${CMAKE_CURRENT_SOURCE_DIR}/rmsnorm_v0.cu
+            ${CMAKE_CURRENT_SOURCE_DIR}/rmsnorm_v1.cu)
 
 target_include_directories(rmsnorm_cuda PUBLIC ${CUDA_INCLUDE_DIRS})
 
