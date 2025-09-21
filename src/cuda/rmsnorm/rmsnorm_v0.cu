@@ -209,7 +209,7 @@ void rmsnorm_v0_benchmark() {
       (input_len + NORM_THREAD_COUNT - 1) / NORM_THREAD_COUNT;
   const float eps = 1.00f;
 
-  int repeat = 100;
+  int repeat = 1;
   cudaEventRecord(start);
   for (int i = 0; i < repeat; i++) {
     // step1 square input

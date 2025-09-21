@@ -4,7 +4,7 @@
 #include <cuda_runtime.h>
 #include <iostream>
 
-__device__ float warpReduceSum(float sum) {
+static __device__ float warpReduceSum(float sum) {
   auto mask = __activemask();
 #pragma unroll
   for (int offset = warpSize / 2; offset > 0; offset >>= 1) {
@@ -126,7 +126,7 @@ void rmsnorm_v1_benchmark() {
 
   double flops = 3 * input_len + 1023 + 3;
   double bytes = 12 * input_size;
-  const int repeat = 100;
+  const int repeat = 25;
   constexpr int COARSE_FACTOR = 4;
   const int THREAD_COUNT = std::min(1024, input_len / COARSE_FACTOR);
 

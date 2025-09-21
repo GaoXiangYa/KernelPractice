@@ -61,7 +61,7 @@ void flashinfer_rmsnorm_benchmark() {
 
   double flops = 5 * input_len;
   double bytes = 12 * input_size;
-  const int repeat = 100;
+  const int repeat = 1;
 
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
