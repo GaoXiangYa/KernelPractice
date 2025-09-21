@@ -18,4 +18,5 @@ project(KernelPractice LANGUAGES CXX CUDA)
 find_package(GTest REQUIRED)
 
 add_subdirectory(src/cuda)
+add_subdirectory(src/cpu)
 
