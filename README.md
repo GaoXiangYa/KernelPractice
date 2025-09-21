@@ -7,11 +7,10 @@ Practice how to write high performance kernels
 - [ ] FlashAttention
 - [ ] LayerNorm
 - [ ] Embedding
-- [ ] RMSNorm
-- [ ] Linear
+- [x] RMSNorm
 - [ ] Split
 - [ ] Cat
-- [x] MatMul
+- [x] Gemm
 - [ ] SoftMax
 - [ ] Gelu
 - [ ] Silu
