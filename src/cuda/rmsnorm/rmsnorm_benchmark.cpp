@@ -13,8 +13,12 @@ int main() {
   //   rmsnorm_v1_benchmark();
   // }
 
+  // {
+  //   rmsnorm_v2_benchmark();
+  // }
+
   {
-    rmsnorm_v2_benchmark();
+    rmsnorm_v3_benchmark();
   }
 
   return 0;
