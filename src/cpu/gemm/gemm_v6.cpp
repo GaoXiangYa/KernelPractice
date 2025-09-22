@@ -11,11 +11,16 @@ static inline void addDot1x4(int k, float *A, int lda, float *B, int ldb, float 
 
   for (int p = 0; p < k; ++ p) {
     a_reg = A(0, p);
-    c_reg_0 += a_reg * *bp0_ptr++;
-    c_reg_1 += a_reg * *bp1_ptr++;
-    c_reg_2 += a_reg * *bp2_ptr++;
-    c_reg_3 += a_reg * *bp3_ptr++;
+    c_reg_0 += a_reg * *bp0_ptr;
+    bp0_ptr += ldb;
+    c_reg_1 += a_reg * *bp1_ptr;
+    bp1_ptr += ldb;
+    c_reg_2 += a_reg * *bp2_ptr;
+    bp2_ptr += ldb;
+    c_reg_3 += a_reg * *bp3_ptr;
+    bp3_ptr += ldb;
   }
+
   C(0, 0) += c_reg_0;
   C(0, 1) += c_reg_1;
   C(0, 2) += c_reg_2;

@@ -2,9 +2,21 @@
 #include "util.h"
 #include <cstdlib>
 #include <cstring>
-#include <gtest/gtest.h>
+#include <format>
+#include <functional>
+#include <iostream>
+#include <span>
+#include <map>
 
-TEST(gemm, gemm_v0) {
+using gemm_func = std::function<void(float *, float *, float *, int, int, int)>;
+
+std::map<std::string, gemm_func> gemm_map = {
+    {"gemm_v0", gemm_v0}, {"gemm_v1", gemm_v1}, {"gemm_v2", gemm_v2},
+    {"gemm_v3", gemm_v3}, {"gemm_v4", gemm_v4}, {"gemm_v5", gemm_v5},
+    {"gemm_v6", gemm_v6},
+};
+
+template <typename Func> void launchTest(const std::string &gemm_name, Func f) {
   const int m = 256, n = 256, k = 256;
   const float random_min = -1.0f, random_max = 1.0f;
 
@@ -26,197 +38,30 @@ TEST(gemm, gemm_v0) {
   initMatrix(C, m, n, random_min, random_max);
   std::memcpy(BLAS_C, C, m * n * sizeof(float));
 
-  gemm_v0(A, B, C, m, n, k);
+  f(A, B, C, m, n, k);
   gemm_blas(BLAS_A, BLAS_B, BLAS_C, m, n, k);
 
   const float tolerance = 0.001f;
-  for (int i = 0; i < m * n; ++ i) {
-    EXPECT_LE(std::abs(C[i] - BLAS_C[i]), tolerance);
+  for (int i = 0; i < m * n; ++i) {
+    if (std::abs(BLAS_C[i] - C[i]) > tolerance) {
+      std::cout << std::format("{} failed!\n openblas is {} {} is {}\n",
+                               gemm_name, BLAS_C[i], gemm_name, C[i]);
+      return;
+    }
   }
+  std::cout << gemm_name << " passed!\n";
 }
 
-TEST(gemm, gemm_v1) {
-  const int m = 256, n = 256, k = 256;
-  const float random_min = -1.0f, random_max = 1.0f;
-
-  float *A = reinterpret_cast<float *>(std::malloc(m * k * sizeof(float)));
-  float *BLAS_A = reinterpret_cast<float *>(std::malloc(m * k * sizeof(float)));
-
-  initMatrix(A, m, k, random_min, random_max);
-  std::memcpy(BLAS_A, A, m * k * sizeof(float));
-
-  float *B = reinterpret_cast<float *>(std::malloc(k * n * sizeof(float)));
-  float *BLAS_B = reinterpret_cast<float *>(std::malloc(k * n * sizeof(float)));
-
-  initMatrix(B, k, n, random_min, random_max);
-  std::memcpy(BLAS_B, B, k * n * sizeof(float));
-
-  float *C = reinterpret_cast<float *>(std::malloc(m * n * sizeof(float)));
-  float *BLAS_C = reinterpret_cast<float *>(std::malloc(m * n * sizeof(float)));
-
-  initMatrix(C, m, n, random_min, random_max);
-  std::memcpy(BLAS_C, C, m * n * sizeof(float));
-
-  gemm_v1(A, B, C, m, n, k);
-  gemm_blas(BLAS_A, BLAS_B, BLAS_C, m, n, k);
-
-  const float tolerance = 0.001f;
-  for (int i = 0; i < m * n; ++ i) {
-    EXPECT_LE(std::abs(C[i] - BLAS_C[i]), tolerance);
+int main(int argc, const char *argv[]) {
+  std::span<const char *> arg_span(argv, argc);
+  if (arg_span.size() == 1) {
+    for (const auto &[gemm_name, gemm_f] : gemm_map) {
+      launchTest(gemm_name, gemm_f);
+    }
+  } else {
+    for (int i = 1; i < arg_span.size(); ++i) {
+      launchTest(arg_span[i], gemm_map[arg_span[i]]);
+    }
   }
-}
-
-TEST(gemm, gemm_v2) {
-  const int m = 256, n = 256, k = 256;
-  const float random_min = -1.0f, random_max = 1.0f;
-
-  float *A = reinterpret_cast<float *>(std::malloc(m * k * sizeof(float)));
-  float *BLAS_A = reinterpret_cast<float *>(std::malloc(m * k * sizeof(float)));
-
-  initMatrix(A, m, k, random_min, random_max);
-  std::memcpy(BLAS_A, A, m * k * sizeof(float));
-
-  float *B = reinterpret_cast<float *>(std::malloc(k * n * sizeof(float)));
-  float *BLAS_B = reinterpret_cast<float *>(std::malloc(k * n * sizeof(float)));
-
-  initMatrix(B, k, n, random_min, random_max);
-  std::memcpy(BLAS_B, B, k * n * sizeof(float));
-
-  float *C = reinterpret_cast<float *>(std::malloc(m * n * sizeof(float)));
-  float *BLAS_C = reinterpret_cast<float *>(std::malloc(m * n * sizeof(float)));
-
-  initMatrix(C, m, n, random_min, random_max);
-  std::memcpy(BLAS_C, C, m * n * sizeof(float));
-
-  gemm_v2(A, B, C, m, n, k);
-  gemm_blas(BLAS_A, BLAS_B, BLAS_C, m, n, k);
-
-  const float tolerance = 0.001f;
-  for (int i = 0; i < m * n; ++ i) {
-    EXPECT_LE(std::abs(C[i] - BLAS_C[i]), tolerance);
-  }
-}
-
-TEST(gemm, gemm_v3) {
-  const int m = 256, n = 256, k = 256;
-  const float random_min = -1.0f, random_max = 1.0f;
-
-  float *A = reinterpret_cast<float *>(std::malloc(m * k * sizeof(float)));
-  float *BLAS_A = reinterpret_cast<float *>(std::malloc(m * k * sizeof(float)));
-
-  initMatrix(A, m, k, random_min, random_max);
-  std::memcpy(BLAS_A, A, m * k * sizeof(float));
-
-  float *B = reinterpret_cast<float *>(std::malloc(k * n * sizeof(float)));
-  float *BLAS_B = reinterpret_cast<float *>(std::malloc(k * n * sizeof(float)));
-
-  initMatrix(B, k, n, random_min, random_max);
-  std::memcpy(BLAS_B, B, k * n * sizeof(float));
-
-  float *C = reinterpret_cast<float *>(std::malloc(m * n * sizeof(float)));
-  float *BLAS_C = reinterpret_cast<float *>(std::malloc(m * n * sizeof(float)));
-
-  initMatrix(C, m, n, random_min, random_max);
-  std::memcpy(BLAS_C, C, m * n * sizeof(float));
-
-  gemm_v3(A, B, C, m, n, k);
-  gemm_blas(BLAS_A, BLAS_B, BLAS_C, m, n, k);
-
-  const float tolerance = 0.001f;
-  for (int i = 0; i < m * n; ++ i) {
-    EXPECT_LE(std::abs(C[i] - BLAS_C[i]), tolerance);
-  }
-}
-
-TEST(gemm, gemm_v4) {
-  const int m = 256, n = 256, k = 256;
-  const float random_min = -1.0f, random_max = 1.0f;
-
-  float *A = reinterpret_cast<float *>(std::malloc(m * k * sizeof(float)));
-  float *BLAS_A = reinterpret_cast<float *>(std::malloc(m * k * sizeof(float)));
-
-  initMatrix(A, m, k, random_min, random_max);
-  std::memcpy(BLAS_A, A, m * k * sizeof(float));
-
-  float *B = reinterpret_cast<float *>(std::malloc(k * n * sizeof(float)));
-  float *BLAS_B = reinterpret_cast<float *>(std::malloc(k * n * sizeof(float)));
-
-  initMatrix(B, k, n, random_min, random_max);
-  std::memcpy(BLAS_B, B, k * n * sizeof(float));
-
-  float *C = reinterpret_cast<float *>(std::malloc(m * n * sizeof(float)));
-  float *BLAS_C = reinterpret_cast<float *>(std::malloc(m * n * sizeof(float)));
-
-  initMatrix(C, m, n, random_min, random_max);
-  std::memcpy(BLAS_C, C, m * n * sizeof(float));
-
-  gemm_v4(A, B, C, m, n, k);
-  gemm_blas(BLAS_A, BLAS_B, BLAS_C, m, n, k);
-
-  const float tolerance = 0.001f;
-  for (int i = 0; i < m * n; ++ i) {
-    EXPECT_LE(std::abs(C[i] - BLAS_C[i]), tolerance);
-  }
-}
-
-TEST(gemm, gemm_v5) {
-  const int m = 256, n = 256, k = 256;
-  const float random_min = -1.0f, random_max = 1.0f;
-
-  float *A = reinterpret_cast<float *>(std::malloc(m * k * sizeof(float)));
-  float *BLAS_A = reinterpret_cast<float *>(std::malloc(m * k * sizeof(float)));
-
-  initMatrix(A, m, k, random_min, random_max);
-  std::memcpy(BLAS_A, A, m * k * sizeof(float));
-
-  float *B = reinterpret_cast<float *>(std::malloc(k * n * sizeof(float)));
-  float *BLAS_B = reinterpret_cast<float *>(std::malloc(k * n * sizeof(float)));
-
-  initMatrix(B, k, n, random_min, random_max);
-  std::memcpy(BLAS_B, B, k * n * sizeof(float));
-
-  float *C = reinterpret_cast<float *>(std::malloc(m * n * sizeof(float)));
-  float *BLAS_C = reinterpret_cast<float *>(std::malloc(m * n * sizeof(float)));
-
-  initMatrix(C, m, n, random_min, random_max);
-  std::memcpy(BLAS_C, C, m * n * sizeof(float));
-
-  gemm_v5(A, B, C, m, n, k);
-  gemm_blas(BLAS_A, BLAS_B, BLAS_C, m, n, k);
-
-  const float tolerance = 0.001f;
-  for (int i = 0; i < m * n; ++ i) {
-    EXPECT_LE(std::abs(C[i] - BLAS_C[i]), tolerance);
-  }
-}
-
-TEST(gemm, gemm_v6) {
-  const int m = 256, n = 256, k = 256;
-  const float random_min = -1.0f, random_max = 1.0f;
-
-  float *A = reinterpret_cast<float *>(std::malloc(m * k * sizeof(float)));
-  float *BLAS_A = reinterpret_cast<float *>(std::malloc(m * k * sizeof(float)));
-
-  initMatrix(A, m, k, random_min, random_max);
-  std::memcpy(BLAS_A, A, m * k * sizeof(float));
-
-  float *B = reinterpret_cast<float *>(std::malloc(k * n * sizeof(float)));
-  float *BLAS_B = reinterpret_cast<float *>(std::malloc(k * n * sizeof(float)));
-
-  initMatrix(B, k, n, random_min, random_max);
-  std::memcpy(BLAS_B, B, k * n * sizeof(float));
-
-  float *C = reinterpret_cast<float *>(std::malloc(m * n * sizeof(float)));
-  float *BLAS_C = reinterpret_cast<float *>(std::malloc(m * n * sizeof(float)));
-
-  initMatrix(C, m, n, random_min, random_max);
-  std::memcpy(BLAS_C, C, m * n * sizeof(float));
-
-  gemm_v6(A, B, C, m, n, k);
-  gemm_blas(BLAS_A, BLAS_B, BLAS_C, m, n, k);
-
-  const float tolerance = 0.001f;
-  for (int i = 0; i < m * n; ++ i) {
-    EXPECT_LE(std::abs(C[i] - BLAS_C[i]), tolerance);
-  }
+  return 0;
 }

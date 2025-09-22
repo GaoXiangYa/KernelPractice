@@ -14,7 +14,7 @@ add_library(gemm_cpu
 target_link_libraries(gemm_cpu PRIVATE ${BLAS_LIBRARIES})
 
 add_executable(gemm_test gemm_test.cpp)
-target_link_libraries(gemm_test PRIVATE gemm_cpu GTest::gtest_main ${BLAS_LIBRARIES})
+target_link_libraries(gemm_test PRIVATE gemm_cpu ${BLAS_LIBRARIES})
 
 
 add_executable(gemm_benchmark gemm_benchmark.cpp)
