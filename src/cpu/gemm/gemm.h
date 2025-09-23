@@ -38,4 +38,18 @@ void gemm_v8(float *A, float *B, float *C, int m, int n, int k);
 
 void gemm_4x4block_v3(float* A, float* B, float* C, int m, int n, int k);
 
+void gemm_4x4block_v4(float* A, float* B, float* C, int m, int n, int k);
+
+void gemm_4x4block_v5(float* A, float* B, float* C, int m, int n, int k);
+
+void gemm_4x4block_v6(float* A, float* B, float* C, int m, int n, int k);
+
+void gemm_4x4block_v7(float* A, float* B, float* C, int m, int n, int k);
+
+void gemm_4x4block_v8(float* A, float* B, float* C, int m, int n, int k);
+
+void gemm_4x4block_v9(float* A, float* B, float* C, int m, int n, int k);
+
+void gemm_4x4block_v10(float* A, float* B, float* C, int m, int n, int k);
+
 void gemm_blas(float *A, float *B, float *C, int m, int n, int k);
