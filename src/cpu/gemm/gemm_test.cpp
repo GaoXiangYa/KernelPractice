@@ -13,7 +13,7 @@ using gemm_func = std::function<void(float *, float *, float *, int, int, int)>;
 std::map<std::string, gemm_func> gemm_map = {
     {"gemm_v0", gemm_v0}, {"gemm_v1", gemm_v1}, {"gemm_v2", gemm_v2},
     {"gemm_v3", gemm_v3}, {"gemm_v4", gemm_v4}, {"gemm_v5", gemm_v5},
-    {"gemm_v6", gemm_v6},
+    {"gemm_v6", gemm_v6}, {"gemm_v7", gemm_v7}, {"gemm_v8", gemm_v8}
 };
 
 template <typename Func> void launchTest(const std::string &gemm_name, Func f) {

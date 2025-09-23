@@ -32,4 +32,10 @@ void gemm_v5(float *A, float *B, float *C, int m, int n, int k);
 
 void gemm_v6(float *A, float *B, float *C, int m, int n, int k);
 
+void gemm_v7(float *A, float *B, float *C, int m, int n, int k);
+
+void gemm_v8(float *A, float *B, float *C, int m, int n, int k);
+
+void gemm_4x4block_v3(float* A, float* B, float* C, int m, int n, int k);
+
 void gemm_blas(float *A, float *B, float *C, int m, int n, int k);

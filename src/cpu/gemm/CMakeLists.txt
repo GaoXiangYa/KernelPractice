@@ -9,6 +9,8 @@ add_library(gemm_cpu
             ${CMAKE_CURRENT_SOURCE_DIR}/gemm_v4.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/gemm_v5.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/gemm_v6.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/gemm_v7.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/gemm_v8.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/gemm_blas.cpp
             )
 target_link_libraries(gemm_cpu PRIVATE ${BLAS_LIBRARIES})

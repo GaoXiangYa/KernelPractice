@@ -13,8 +13,8 @@ using gemm_func = std::function<void(float *, float *, float *, int, int, int)>;
 std::unordered_map<std::string, gemm_func> gemm_map = {
     {"gemm_v0", gemm_v0}, {"gemm_blas", gemm_blas}, {"gemm_v1", gemm_v1},
     {"gemm_v2", gemm_v2}, {"gemm_v3", gemm_v3},     {"gemm_v4", gemm_v4},
-    {"gemm_v5", gemm_v5}, {"gemm_v6", gemm_v6},
-};
+    {"gemm_v5", gemm_v5}, {"gemm_v6", gemm_v6},     {"gemm_v7", gemm_v7},
+    {"gemm_v8", gemm_v8}};
 
 double gflops(int M, int N, int K, double seconds) {
   double flops = 2.0 * M * N * K;
@@ -55,7 +55,7 @@ void launchBenchmark(const std::string &name) {
   float *C = nullptr;
   std::ofstream gemm_file(name + ".csv", std::ios::out);
 
-  for (int stride = 64; stride <= 1024; stride += 16) {
+  for (int stride = 16; stride <= 1024; stride += 16) {
     benchmark<gemm_func>(gemm_file, name, func, A, B, C, stride, stride,
                          stride);
   }
