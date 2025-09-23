@@ -19,6 +19,7 @@ add_library(gemm_cpu
             ${CMAKE_CURRENT_SOURCE_DIR}/gemm_4x4block_v8.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/gemm_4x4block_v9.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/gemm_4x4block_v10.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/gemm_4x4block_v11.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/gemm_blas.cpp
             )
 target_link_libraries(gemm_cpu PRIVATE ${BLAS_LIBRARIES})
