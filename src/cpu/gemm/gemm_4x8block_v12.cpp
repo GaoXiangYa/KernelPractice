@@ -7,7 +7,7 @@ typedef union {
   float d[8];
 } vec_t;
 
-static void addDot4x4(int k, float *A, int lda, float *B, int ldb, float *C,
+static void addDot4x8(int k, float *A, int lda, float *B, int ldb, float *C,
                       int ldc) {
   vec_t c0_vec, c1_vec, c2_vec, c3_vec;
   c0_vec.v = _mm256_load_ps(&C(0, 0));
@@ -68,7 +68,7 @@ void gemm_4x8block_v12(float *A, float *B, float *C, int m, int n, int k) {
   const int MR = 4, NR = 8;
   for (int i = 0; i < m; i += MR) {
     for (int j = 0; j < n; j += NR) {
-      addDot4x4(k, &A(i, 0), lda, &B(0, j), ldb, &C(i, j), ldc);
+      addDot4x8(k, &A(i, 0), lda, &B(0, j), ldb, &C(i, j), ldc);
     }
   }
 }
