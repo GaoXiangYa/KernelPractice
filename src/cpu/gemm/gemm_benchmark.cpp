@@ -38,6 +38,23 @@ double gflops(int M, int N, int K, double seconds) {
   return flops / (seconds * 1e9);
 }
 
+void warmUp() {
+  const int M = 128, N = 128, K = 128;
+  const int ALIGNMENT = 32;
+  float* A = reinterpret_cast<float*>(std::aligned_alloc(ALIGNMENT, M * K * sizeof(float)));
+  float* B = reinterpret_cast<float*>(std::aligned_alloc(ALIGNMENT, K * N * sizeof(float)));
+  float* C = reinterpret_cast<float*>(std::aligned_alloc(ALIGNMENT, M * N * sizeof(float)));
+  const int repeat = 3;
+
+  for (int i = 0; i < repeat; ++ i) {
+    gemm_blas(A, B, C, M, N, K);
+  }
+
+  std::free(A);
+  std::free(B);
+  std::free(C);
+}
+
 template <typename Func>
 void benchmark(std::ofstream &file, const std::string &name, Func f, float *A,
                float *B, float *C, int m, int n, int k) {
@@ -73,6 +90,8 @@ void launchBenchmark(const std::string &name) {
   float *B = nullptr;
   float *C = nullptr;
   std::ofstream gemm_file(name + ".csv", std::ios::out);
+
+  warmUp();
 
   for (int stride = 16; stride <= 1024; stride += 16) {
     benchmark<gemm_func>(gemm_file, name, func, A, B, C, stride, stride,
