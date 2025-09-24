@@ -30,6 +30,7 @@ std::unordered_map<std::string, gemm_func> gemm_map = {
     {"gemm_4x4block_v9", gemm_4x4block_v9},
     {"gemm_4x4block_v10", gemm_4x4block_v10},
     {"gemm_4x4block_v11", gemm_4x4block_v11},
+    {"gemm_4x8block_v12", gemm_4x8block_v12},
 };
 
 double gflops(int M, int N, int K, double seconds) {
@@ -40,11 +41,13 @@ double gflops(int M, int N, int K, double seconds) {
 template <typename Func>
 void benchmark(std::ofstream &file, const std::string &name, Func f, float *A,
                float *B, float *C, int m, int n, int k) {
-  A = reinterpret_cast<float *>(std::aligned_alloc(16, m * k * sizeof(float)));
+  const int ALIGNMENT = 32;
+
+  A = reinterpret_cast<float *>(std::aligned_alloc(ALIGNMENT, m * k * sizeof(float)));
   initMatrix(A, m, k, -1.0f, 1.0f);
-  B = reinterpret_cast<float *>(std::aligned_alloc(16, k * n * sizeof(float)));
+  B = reinterpret_cast<float *>(std::aligned_alloc(ALIGNMENT, k * n * sizeof(float)));
   initMatrix(B, k, n, -1.0f, 1.0f);
-  C = reinterpret_cast<float *>(std::aligned_alloc(16, m * n * sizeof(float)));
+  C = reinterpret_cast<float *>(std::aligned_alloc(ALIGNMENT, m * n * sizeof(float)));
   initMatrix(C, m, n, -1.0f, 1.0f);
 
   auto start = std::chrono::high_resolution_clock::now();

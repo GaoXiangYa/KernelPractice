@@ -29,26 +29,34 @@ std::map<std::string, gemm_func> gemm_map = {
     {"gemm_4x4block_v9", gemm_4x4block_v9},
     {"gemm_4x4block_v10", gemm_4x4block_v10},
     {"gemm_4x4block_v11", gemm_4x4block_v11},
+    {"gemm_4x8block_v12", gemm_4x8block_v12},
 };
 
 template <typename Func> void launchTest(const std::string &gemm_name, Func f) {
   const int m = 256, n = 256, k = 256;
   const float random_min = -1.0f, random_max = 1.0f;
+  const int ALIGNMENT = 32;
 
-  float *A = reinterpret_cast<float *>(std::malloc(m * k * sizeof(float)));
-  float *BLAS_A = reinterpret_cast<float *>(std::malloc(m * k * sizeof(float)));
+  float *A = reinterpret_cast<float *>(
+      std::aligned_alloc(ALIGNMENT, m * k * sizeof(float)));
+  float *BLAS_A = reinterpret_cast<float *>(
+      std::aligned_alloc(ALIGNMENT, m * k * sizeof(float)));
 
   initMatrix(A, m, k, random_min, random_max);
   std::memcpy(BLAS_A, A, m * k * sizeof(float));
 
-  float *B = reinterpret_cast<float *>(std::malloc(k * n * sizeof(float)));
-  float *BLAS_B = reinterpret_cast<float *>(std::malloc(k * n * sizeof(float)));
+  float *B = reinterpret_cast<float *>(
+      std::aligned_alloc(ALIGNMENT, k * n * sizeof(float)));
+  float *BLAS_B = reinterpret_cast<float *>(
+      std::aligned_alloc(ALIGNMENT, k * n * sizeof(float)));
 
   initMatrix(B, k, n, random_min, random_max);
   std::memcpy(BLAS_B, B, k * n * sizeof(float));
 
-  float *C = reinterpret_cast<float *>(std::malloc(m * n * sizeof(float)));
-  float *BLAS_C = reinterpret_cast<float *>(std::malloc(m * n * sizeof(float)));
+  float *C = reinterpret_cast<float *>(
+      std::aligned_alloc(ALIGNMENT, m * n * sizeof(float)));
+  float *BLAS_C = reinterpret_cast<float *>(
+      std::aligned_alloc(ALIGNMENT, m * n * sizeof(float)));
 
   initMatrix(C, m, n, random_min, random_max);
   std::memcpy(BLAS_C, C, m * n * sizeof(float));
