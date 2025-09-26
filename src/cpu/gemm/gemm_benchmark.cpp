@@ -31,6 +31,9 @@ std::unordered_map<std::string, gemm_func> gemm_map = {
     {"gemm_4x4block_v10", gemm_4x4block_v10},
     {"gemm_4x4block_v11", gemm_4x4block_v11},
     {"gemm_4x8block_v12", gemm_4x8block_v12},
+    {"gemm_4x8block_v13", gemm_4x8block_v13},
+    {"gemm_4x8block_v14", gemm_4x8block_v14},
+    {"gemm_4x8block_v15", gemm_4x8block_v15},
 };
 
 double gflops(int M, int N, int K, double seconds) {
@@ -41,12 +44,15 @@ double gflops(int M, int N, int K, double seconds) {
 void warmUp() {
   const int M = 128, N = 128, K = 128;
   const int ALIGNMENT = 32;
-  float* A = reinterpret_cast<float*>(std::aligned_alloc(ALIGNMENT, M * K * sizeof(float)));
-  float* B = reinterpret_cast<float*>(std::aligned_alloc(ALIGNMENT, K * N * sizeof(float)));
-  float* C = reinterpret_cast<float*>(std::aligned_alloc(ALIGNMENT, M * N * sizeof(float)));
+  float *A = reinterpret_cast<float *>(
+      std::aligned_alloc(ALIGNMENT, M * K * sizeof(float)));
+  float *B = reinterpret_cast<float *>(
+      std::aligned_alloc(ALIGNMENT, K * N * sizeof(float)));
+  float *C = reinterpret_cast<float *>(
+      std::aligned_alloc(ALIGNMENT, M * N * sizeof(float)));
   const int repeat = 3;
 
-  for (int i = 0; i < repeat; ++ i) {
+  for (int i = 0; i < repeat; ++i) {
     gemm_blas(A, B, C, M, N, K);
   }
 
@@ -59,22 +65,28 @@ template <typename Func>
 void benchmark(std::ofstream &file, const std::string &name, Func f, float *A,
                float *B, float *C, int m, int n, int k) {
   const int ALIGNMENT = 32;
+  const int REPEAT = 100;
 
-  A = reinterpret_cast<float *>(std::aligned_alloc(ALIGNMENT, m * k * sizeof(float)));
+  A = reinterpret_cast<float *>(
+      std::aligned_alloc(ALIGNMENT, m * k * sizeof(float)));
   initMatrix(A, m, k, -1.0f, 1.0f);
-  B = reinterpret_cast<float *>(std::aligned_alloc(ALIGNMENT, k * n * sizeof(float)));
+  B = reinterpret_cast<float *>(
+      std::aligned_alloc(ALIGNMENT, k * n * sizeof(float)));
   initMatrix(B, k, n, -1.0f, 1.0f);
-  C = reinterpret_cast<float *>(std::aligned_alloc(ALIGNMENT, m * n * sizeof(float)));
+  C = reinterpret_cast<float *>(
+      std::aligned_alloc(ALIGNMENT, m * n * sizeof(float)));
   initMatrix(C, m, n, -1.0f, 1.0f);
 
   auto start = std::chrono::high_resolution_clock::now();
-  f(A, B, C, m, n, k);
+  for (int i = 0; i < REPEAT; ++i) {
+    f(A, B, C, m, n, k);
+  }
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> elapsed = end - start;
 
   file << "[" << name << "] [m, n, k]: " << m
-       << " Time: " << elapsed.count() * 1000
-       << " ms, GFLOPS: " << gflops(m, n, k, elapsed.count()) << "\n";
+       << " Time: " << elapsed.count() * 1000 / REPEAT
+       << " ms, GFLOPS: " << gflops(m, n, k, elapsed.count() / REPEAT) << "\n";
 
   std::free(A);
   std::free(B);
