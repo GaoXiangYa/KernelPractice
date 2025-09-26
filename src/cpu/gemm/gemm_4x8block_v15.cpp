@@ -35,27 +35,18 @@ static void addDot4x8(int k, float *A, int lda, float *B, int ldb, float *C,
   b_vec.v = _mm256_set1_ps(0.00f);
 
   for (int p = 0; p < k; ++p) {
+
     a0_vec.v = _mm256_set1_ps(A(0, p));
     a1_vec.v = _mm256_set1_ps(A(1, p));
     a2_vec.v = _mm256_set1_ps(A(2, p));
     a3_vec.v = _mm256_set1_ps(A(3, p));
 
-    b_vec.v = _mm256_set_ps(*bp7_ptr, *bp6_ptr, *bp5_ptr, *bp4_ptr, *bp3_ptr,
-                            *bp2_ptr, *bp1_ptr, *bp0_ptr);
+    b_vec.v = _mm256_load_ps(&B[p * ldb]);
 
     c0_vec.v = _mm256_fmadd_ps(a0_vec.v, b_vec.v, c0_vec.v);
     c1_vec.v = _mm256_fmadd_ps(a1_vec.v, b_vec.v, c1_vec.v);
     c2_vec.v = _mm256_fmadd_ps(a2_vec.v, b_vec.v, c2_vec.v);
     c3_vec.v = _mm256_fmadd_ps(a3_vec.v, b_vec.v, c3_vec.v);
-
-    bp0_ptr += ldb;
-    bp1_ptr += ldb;
-    bp2_ptr += ldb;
-    bp3_ptr += ldb;
-    bp4_ptr += ldb;
-    bp5_ptr += ldb;
-    bp6_ptr += ldb;
-    bp7_ptr += ldb;
   }
 
   _mm256_store_ps(&C(0, 0), c0_vec.v);
@@ -64,13 +55,13 @@ static void addDot4x8(int k, float *A, int lda, float *B, int ldb, float *C,
   _mm256_store_ps(&C(3, 0), c3_vec.v);
 }
 
-static void packedMatrixA(float* A, float* packedA, int k, int lda) {
-  float* a0_ptr = A;
-  float* a1_ptr = A + lda;
-  float* a2_ptr = A + 2 * lda;
-  float* a3_ptr = A + 3 * lda;
-  
-  for (int p = 0; p < k; ++ p) {
+static void packedMatrixA(float *A, float *packedA, int k, int lda) {
+  float *a0_ptr = A;
+  float *a1_ptr = A + lda;
+  float *a2_ptr = A + 2 * lda;
+  float *a3_ptr = A + 3 * lda;
+
+  for (int p = 0; p < k; ++p) {
     *packedA++ = *a0_ptr++;
     *packedA++ = *a1_ptr++;
     *packedA++ = *a2_ptr++;
@@ -78,18 +69,28 @@ static void packedMatrixA(float* A, float* packedA, int k, int lda) {
   }
 }
 
-static void innerKernel(float *A, float *B, float *C, int m, int n, int k,
-                        int lda, int ldb, int ldc) {
-  const int MR = 4, NR = 8;
-  float packedA[MR * k];
-  for (int i = 0; i < m; i += MR) {
-    packedMatrixA(&A(i, 0), packedA, k, lda);
-    for (int j = 0; j < n; j += NR) {
-      addDot4x8(k, packedA, k, &B(0, j),ldb, &C(i, j), ldc);
+static void packedMatrixB(float *B, float *packedB, int k, int ldb, int nr) {
+  for (int p = 0; p < k; ++p) {
+    const float *bp = B + p * ldb;
+    for (int j = 0; j < nr; ++j) {
+      *packedB++ = bp[j];
     }
   }
 }
 
+static void innerKernel(float *A, float *B, float *C, int m, int n, int k,
+                        int lda, int ldb, int ldc) {
+  const int MR = 4, NR = 8;
+  alignas(32) float packedA[MR * k];
+  alignas(32) float packedB[NR * k];
+
+  for (int j = 0; j < n; j += NR) {
+    packedMatrixB(&B(0, j), packedB, k, ldb, NR);
+    for (int i = 0; i < m; i += MR) {
+      addDot4x8(k, &A(i, 0), lda, packedB, NR, &C(i, j), ldc);
+    }
+  }
+}
 
 void gemm_4x8block_v15(float *A, float *B, float *C, int m, int n, int k) {
   int lda = k, ldb = n, ldc = n;
