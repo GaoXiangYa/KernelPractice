@@ -34,6 +34,7 @@ std::unordered_map<std::string, gemm_func> gemm_map = {
     {"gemm_4x8block_v13", gemm_4x8block_v13},
     {"gemm_4x8block_v14", gemm_4x8block_v14},
     {"gemm_4x8block_v15", gemm_4x8block_v15},
+    {"gemm_4x8block_v16", gemm_4x8block_v16},
 };
 
 double gflops(int M, int N, int K, double seconds) {
