@@ -68,4 +68,6 @@ void gemm_4x8block_v17(float *A, float *B, float *C, int m, int n, int k);
 
 void gemm_4x8block_v18(float *A, float *B, float *C, int m, int n, int k);
 
+void gemm_4x8block_v19(float *A, float *B, float *C, int m, int n, int k);
+
 void gemm_blas(float *A, float *B, float *C, int m, int n, int k);
