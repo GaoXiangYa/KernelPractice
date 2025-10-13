@@ -1,5 +1,6 @@
 #include "gemm.h"
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <immintrin.h>
 #include <xmmintrin.h>
@@ -33,10 +34,10 @@ static void addDot4x8(int k, float *packedA, float *packedB, int ldb, float *C,
 
   for (int p = 0; p < k; ++p) {
 
-    a0_vec.v = _mm256_load_ps((a0_ptr + p));
-    a1_vec.v = _mm256_load_ps((a1_ptr + p));
-    a2_vec.v = _mm256_load_ps((a2_ptr + p));
-    a3_vec.v = _mm256_load_ps((a3_ptr + p));
+    a0_vec.v = _mm256_load_ps((a0_ptr + p * 8));
+    a1_vec.v = _mm256_load_ps((a1_ptr + p * 8));
+    a2_vec.v = _mm256_load_ps((a2_ptr + p * 8));
+    a3_vec.v = _mm256_load_ps((a3_ptr + p * 8));
 
     b_vec.v = _mm256_load_ps(&packedB[p * ldb]);
 
@@ -53,29 +54,29 @@ static void addDot4x8(int k, float *packedA, float *packedB, int ldb, float *C,
 }
 
 static void storeVal1x8(const float *src, float *dst, int k) {
+  __m256 val;
   for (int p = 0; p < k; p += 8) {
-    auto val = _mm256_load_ps(src + p);
+    val = _mm256_load_ps(src + p);
     _mm256_store_ps(dst, val);
     dst += 8;
   }
 }
 
-static void packedMatrixA(float *A, float *packedA, int ib, int kb, int lda) {
+static void storeValBroadcast1x8(const float *src, float *dst, int k) {
   vec_t tmp_vec;
+  for (int p = 0; p < k; ++p) {
+    tmp_vec.v = _mm256_set1_ps(src[p]);
+    _mm256_store_ps(dst + p * 8, tmp_vec.v);
+  }
+}
+
+static void packedMatrixA(float *A, float *packedA, int ib, int kb, int lda) {
   for (int i = 0; i < ib; i += 4) {
-    tmp_vec.v = _mm256_set1_ps(A(i, 0));
-    storeVal1x8(tmp_vec.d, packedA, kb);
-
-    tmp_vec.v = _mm256_set1_ps(A(i, 1));
-    storeVal1x8(tmp_vec.d, packedA, kb);
-
-    tmp_vec.v = _mm256_set1_ps(A(i, 2));
-    storeVal1x8(tmp_vec.d, packedA, kb);
-
-    tmp_vec.v = _mm256_set1_ps(A(i, 3));
-    storeVal1x8(tmp_vec.d, packedA, kb);
-
-    packedA += 4 * kb;
+    storeValBroadcast1x8(&A(i, 0), packedA, kb);
+    storeValBroadcast1x8(&A(i + 1, 0), packedA + 8 * kb, kb);
+    storeValBroadcast1x8(&A(i + 2, 0), packedA + 2 * 8 * kb, kb);
+    storeValBroadcast1x8(&A(i + 3, 0), packedA + 3 * 8 * kb, kb);
+    packedA += 4 * 8 * kb;
   }
 }
 
@@ -120,7 +121,7 @@ void gemm_4x8block_v18(float *A, float *B, float *C, int m, int n, int k) {
       int pb = std::min(k - p, KC);
       for (int i = 0; i < m; i += MC) {
         int ib = std::min(m - i, MC);
-        packedMatrixA(&A(i, p), packedA, ib, pb * 8, lda);
+        packedMatrixA(&A(i, p), packedA, ib, pb, lda);
         innerKernel(packedA, &B(p, j), &C(i, j), ib, jb, pb, ldb, ldc);
       }
     }
