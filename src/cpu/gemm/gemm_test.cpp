@@ -37,6 +37,7 @@ std::map<std::string, gemm_func> gemm_map = {
     {"gemm_4x8block_v17", gemm_4x8block_v17},
     {"gemm_4x8block_v18", gemm_4x8block_v18},
     {"gemm_4x8block_v19", gemm_4x8block_v19},
+    {"gemm_4x8block_v20", gemm_4x8block_v20},
 };
 
 template <typename Func> void launchTest(const std::string &gemm_name, Func f) {

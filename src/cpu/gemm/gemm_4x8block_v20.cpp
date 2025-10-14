@@ -20,59 +20,43 @@ static void addDot4x8(int k, float *packedA, float *packedB, int ldb, float *C,
   c3_vec.v = _mm256_load_ps(&C(3, 0));
 
   vec_t a0_vec0, a1_vec0, a2_vec0, a3_vec0;
-
-  a0_vec0.v = _mm256_broadcast_ss(&zero);
-  a1_vec0.v = _mm256_broadcast_ss(&zero);
-  a2_vec0.v = _mm256_broadcast_ss(&zero);
-  a3_vec0.v = _mm256_broadcast_ss(&zero);
-
   vec_t a0_vec1, a1_vec1, a2_vec1, a3_vec1;
-  vec_t a0_vec2, a1_vec2, a2_vec2, a3_vec2;
 
   float *a0_ptr = packedA;
   float *a1_ptr = packedA + k;
   float *a2_ptr = packedA + 2 * k;
   float *a3_ptr = packedA + 3 * k;
 
-  a0_vec0.v = _mm256_broadcast_ss(a0_ptr + 0);
-  a1_vec0.v = _mm256_broadcast_ss((a1_ptr + 0));
-  a2_vec0.v = _mm256_broadcast_ss((a2_ptr + 0));
-  a3_vec0.v = _mm256_broadcast_ss((a3_ptr + 0));
-
-  a0_vec1.v = _mm256_broadcast_ss(a0_ptr + 1);
-  a1_vec1.v = _mm256_broadcast_ss((a1_ptr + 1));
-  a2_vec1.v = _mm256_broadcast_ss((a2_ptr + 1));
-  a3_vec1.v = _mm256_broadcast_ss((a3_ptr + 1));
-
   vec_t b_vec0, b_vec1, b_vec2;
-  b_vec0.v = _mm256_load_ps(&packedB[0 * ldb]);
-  b_vec1.v = _mm256_load_ps(&packedB[1 * ldb]);
 
-  for (int p = 2; p <= k; ++p) {
-    a0_vec2.v = _mm256_broadcast_ss(a0_ptr + p);
-    a1_vec2.v = _mm256_broadcast_ss((a1_ptr + p));
-    a2_vec2.v = _mm256_broadcast_ss((a2_ptr + p));
-    a3_vec2.v = _mm256_broadcast_ss((a3_ptr + p));
-    b_vec2.v = _mm256_load_ps(&packedB[p * ldb]);
+  for (int p = 0; p <= k - 2; p += 2) {
+    _mm_prefetch((const char *)(packedB + (p + 8) * ldb), _MM_HINT_T0);
+    _mm_prefetch((const char *)(a0_ptr + p + 8), _MM_HINT_T1);
+    _mm_prefetch((const char *)(a1_ptr + p + 8), _MM_HINT_T1);
+    _mm_prefetch((const char *)(a2_ptr + p + 8), _MM_HINT_T1);
+    _mm_prefetch((const char *)(a3_ptr + p + 8), _MM_HINT_T1);
+
+    a0_vec0.v = _mm256_broadcast_ss(a0_ptr + p);
+    a1_vec0.v = _mm256_broadcast_ss((a1_ptr + p));
+    a2_vec0.v = _mm256_broadcast_ss((a2_ptr + p));
+    a3_vec0.v = _mm256_broadcast_ss((a3_ptr + p));
+    b_vec0.v = _mm256_load_ps(&packedB[p * ldb]);
+
+    a0_vec1.v = _mm256_broadcast_ss(a0_ptr + p + 1);
+    a1_vec1.v = _mm256_broadcast_ss((a1_ptr + p + 1));
+    a2_vec1.v = _mm256_broadcast_ss((a2_ptr + p + 1));
+    a3_vec1.v = _mm256_broadcast_ss((a3_ptr + p + 1));
+    b_vec1.v = _mm256_load_ps(&packedB[(p + 1) * ldb]);
 
     c0_vec.v = _mm256_fmadd_ps(a0_vec0.v, b_vec0.v, c0_vec.v);
     c1_vec.v = _mm256_fmadd_ps(a1_vec0.v, b_vec0.v, c1_vec.v);
     c2_vec.v = _mm256_fmadd_ps(a2_vec0.v, b_vec0.v, c2_vec.v);
     c3_vec.v = _mm256_fmadd_ps(a3_vec0.v, b_vec0.v, c3_vec.v);
 
-    if (p == k) {
-      break;
-    }
-    a0_vec0.v = a0_vec1.v;
-    a1_vec0.v = a1_vec1.v;
-    a2_vec0.v = a2_vec1.v;
-    a3_vec0.v = a3_vec1.v;
-    b_vec0.v = b_vec1.v;
-    a0_vec1.v = a0_vec2.v;
-    a1_vec1.v = a1_vec2.v;
-    a2_vec1.v = a2_vec2.v;
-    a3_vec1.v = a3_vec2.v;
-    b_vec1.v = b_vec2.v;
+    c0_vec.v = _mm256_fmadd_ps(a0_vec1.v, b_vec1.v, c0_vec.v);
+    c1_vec.v = _mm256_fmadd_ps(a1_vec1.v, b_vec1.v, c1_vec.v);
+    c2_vec.v = _mm256_fmadd_ps(a2_vec1.v, b_vec1.v, c2_vec.v);
+    c3_vec.v = _mm256_fmadd_ps(a3_vec1.v, b_vec1.v, c3_vec.v);
   }
 
   _mm256_store_ps(&C(0, 0), c0_vec.v);
