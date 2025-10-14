@@ -29,10 +29,10 @@ static void addDot4x8(int k, float *packedA, float *packedB, int ldb, float *C,
   float *a1_ptr = packedA + k;
   float *a2_ptr = packedA + 2 * k;
   float *a3_ptr = packedA + 3 * k;
-  a0_nex_vec.v = _mm256_set1_ps(*(a0_ptr + 0));
-  a1_nex_vec.v = _mm256_set1_ps(*(a1_ptr + 0));
-  a2_nex_vec.v = _mm256_set1_ps(*(a2_ptr + 0));
-  a3_nex_vec.v = _mm256_set1_ps(*(a3_ptr + 0));
+  a0_nex_vec.v = _mm256_broadcast_ss(a0_ptr + 0);
+  a1_nex_vec.v = _mm256_broadcast_ss((a1_ptr + 0));
+  a2_nex_vec.v = _mm256_broadcast_ss((a2_ptr + 0));
+  a3_nex_vec.v = _mm256_broadcast_ss((a3_ptr + 0));
 
   vec_t b_cur_vec, b_nex_vec;
   b_cur_vec.v = _mm256_set1_ps(0.00f);
@@ -55,10 +55,10 @@ static void addDot4x8(int k, float *packedA, float *packedB, int ldb, float *C,
       break;
     }
 
-    a0_nex_vec.v = _mm256_set1_ps(*(a0_ptr + p));
-    a1_nex_vec.v = _mm256_set1_ps(*(a1_ptr + p));
-    a2_nex_vec.v = _mm256_set1_ps(*(a2_ptr + p));
-    a3_nex_vec.v = _mm256_set1_ps(*(a3_ptr + p));
+    a0_nex_vec.v = _mm256_broadcast_ss((a0_ptr + p));
+    a1_nex_vec.v = _mm256_broadcast_ss((a1_ptr + p));
+    a2_nex_vec.v = _mm256_broadcast_ss((a2_ptr + p));
+    a3_nex_vec.v = _mm256_broadcast_ss((a3_ptr + p));
 
     b_nex_vec.v = _mm256_load_ps(&packedB[p * ldb]);
   }
