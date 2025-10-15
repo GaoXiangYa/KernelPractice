@@ -102,7 +102,7 @@ static void innerKernel(float *packedA, float *B, float *C, int m, int n, int k,
 void gemm_4x8block_v17(float *A, float *B, float *C, int m, int n, int k) {
   int lda = k, ldb = n, ldc = n;
   const int MC = 256;
-  const int NC = 256;
+  const int NC = 4096;
   const int KC = 128;
   alignas(32) float packedA[MC * KC];
 
