@@ -62,7 +62,6 @@ static void storeVal1x8(const float *src, float *dst, int k) {
 }
 
 static void packedMatrixA(float *A, float *packedA, int ib, int kb, int lda) {
-
   for (int i = 0; i < ib; i += 4) {
     storeVal1x8(&A(i, 0), packedA, kb);
     storeVal1x8(&A(i + 1, 0), packedA + kb, kb);
@@ -107,7 +106,7 @@ void gemm_omp_v19(float *A, float *B, float *C, int m, int n, int k) {
   const int KC = 128;
   alignas(32) float packedA[MC * KC];
 
-#pragma omp parallel for schedule(static) collapse(2)
+#pragma omp parallel for schedule(static) collapse(2) private(packedA)
   for (int j = 0; j < n; j += NC) {
     int jb = std::min(n - j, NC);
     for (int p = 0; p < k; p += KC) {
