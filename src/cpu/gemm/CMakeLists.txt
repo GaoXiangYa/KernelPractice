@@ -31,6 +31,7 @@ add_library(gemm_cpu
   ${CMAKE_CURRENT_SOURCE_DIR}/gemm_4x8block_v19.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/gemm_4x8block_v20.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/gemm_omp_v18.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/gemm_omp_v19.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/gemm_blas.cpp
 )
 
