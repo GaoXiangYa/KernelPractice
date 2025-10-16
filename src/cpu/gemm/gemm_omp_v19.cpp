@@ -1,10 +1,10 @@
 #include "gemm.h"
 #include <algorithm>
+#include <cstdio>
 #include <cstring>
 #include <immintrin.h>
 #include <omp.h>
 #include <xmmintrin.h>
-
 typedef union {
   __m256 v;
   float d[8];
@@ -101,8 +101,8 @@ static void innerKernel(float *packedA, float *B, float *C, int m, int n, int k,
 
 void gemm_omp_v19(float *A, float *B, float *C, int m, int n, int k) {
   int lda = k, ldb = n, ldc = n;
-  const int MC = 256;
-  const int NC = 256;
+  const int MC = 128;
+  const int NC = 128;
   const int KC = 128;
   // alignas(32) float packedA[MC * KC];
 
@@ -112,7 +112,8 @@ void gemm_omp_v19(float *A, float *B, float *C, int m, int n, int k) {
       int jb = std::min(n - j, NC);
       int ib = std::min(m - i, MC);
       alignas(32) float packedA[MC * KC];
-
+      // const int nltlds = omp_get_num_threads();
+      // printf("nltlds: %d\n", nltlds);
       for (int p = 0; p < k; p += KC) {
         // alignas(32) float packedA[MC * KC];
         int pb = std::min(k - p, KC);
