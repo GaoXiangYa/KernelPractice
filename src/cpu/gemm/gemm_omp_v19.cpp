@@ -104,15 +104,18 @@ void gemm_omp_v19(float *A, float *B, float *C, int m, int n, int k) {
   const int MC = 256;
   const int NC = 256;
   const int KC = 128;
-  alignas(32) float packedA[MC * KC];
+  // alignas(32) float packedA[MC * KC];
 
-#pragma omp parallel for schedule(static) collapse(2) private(packedA)
+#pragma omp parallel for schedule(static) collapse(2)
   for (int j = 0; j < n; j += NC) {
-    int jb = std::min(n - j, NC);
-    for (int p = 0; p < k; p += KC) {
-      int pb = std::min(k - p, KC);
-      for (int i = 0; i < m; i += MC) {
-        int ib = std::min(m - i, MC);
+    for (int i = 0; i < m; i += MC) {
+      int jb = std::min(n - j, NC);
+      int ib = std::min(m - i, MC);
+      alignas(32) float packedA[MC * KC];
+
+      for (int p = 0; p < k; p += KC) {
+        // alignas(32) float packedA[MC * KC];
+        int pb = std::min(k - p, KC);
         packedMatrixA(&A(i, p), packedA, ib, pb, lda);
         innerKernel(packedA, &B(p, j), &C(i, j), ib, jb, pb, ldb, ldc);
       }
