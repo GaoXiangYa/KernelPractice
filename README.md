@@ -3,14 +3,13 @@ Practice how to write high performance kernels
 
 ## CUDA
 
-- [ ] Attention
 - [ ] FlashAttention
 - [ ] LayerNorm
-- [ ] Embedding
 - [x] RMSNorm
 - [ ] Split
 - [ ] Cat
 - [x] Gemm
+- [ ] Gemv
 - [ ] SoftMax
 - [ ] Gelu
 - [ ] Silu
@@ -20,3 +19,22 @@ Practice how to write high performance kernels
 - [ ] Permute
 - [ ] LlamaRotatePosition2D
 - [x] Reduce
+
+## CPU
+
+- [ ] FlashAttention
+- [ ] LayerNorm
+- [] RMSNorm
+- [ ] Split
+- [ ] Cat
+- [x] Gemm
+- [ ] Gemv
+- [ ] SoftMax
+- [ ] Gelu
+- [ ] Silu
+- [ ] Swiglu
+- [ ] Add
+- [ ] Mul
+- [ ] Permute
+- [ ] LlamaRotatePosition2D
+- [ ] Reduce
