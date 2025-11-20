@@ -49,7 +49,7 @@ void gemv_v0(float *mat_a, float *vec_x, float *vec_y, const int m, const int n,
   CHECK_CUDA(cudaFree(dev_vec_y));
 }
 
-void benchmark_gemv_v0(const int m, const int n) {
+void benchmark_gemv_v0(std::ofstream &file, const int m, const int n) {
   constexpr float alpha = 1.0f;
   constexpr float beta = 0.0f;
   std::vector<float> mat_a(m * n, 0.0f);
@@ -113,8 +113,8 @@ void benchmark_gemv_v0(const int m, const int n) {
   const float Flops = 2 * m * n;
   double gflops = Flops / (time_ms * 1e6);
 
-  printf("GEMV_V0 : m=%d n=%d -> %.4f ms, %.2f GFLOPS\n", m, n, time_ms,
-         gflops);
+  file << "GEMV_V0: M = " << m << " N = " << n << " -> " << time_ms << " ms "
+       << gflops << " GFlops\n";
 
   CHECK_CUDA(cudaFree(dev_mat_a));
   CHECK_CUDA(cudaFree(dev_vec_x));

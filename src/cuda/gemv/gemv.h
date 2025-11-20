@@ -1,3 +1,4 @@
+#include <fstream>
 // y=αAx+βy
 // A[M, N]
 // X[N, 1]
@@ -8,6 +9,6 @@ void gemv_v0(float *mat_a, float *vec_x, float *vec_y, const int m, const int n,
 void cutlass_gemv_fp32(float *mat_a, float *vec_x, float *vec_y, const int m,
                        const int n, const float alpha, const float beta);
 
-void benchmark_gemv_v0(const int m, const int n);
+void benchmark_gemv_v0(std::ofstream &file, const int m, const int n);
 
-void benchmark_cutlass_gemv_fp32(const int m, const int n);
+void benchmark_cutlass_gemv_fp32(std::ofstream &file, const int m, const int n);

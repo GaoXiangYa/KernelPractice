@@ -50,7 +50,8 @@ void cutlass_gemv_fp32(float *mat_a, float *vec_x, float *vec_y, const int m,
   CHECK_CUDA(cudaFree(dev_vec_y));
 }
 
-void benchmark_cutlass_gemv_fp32(const int m, const int n) {
+void benchmark_cutlass_gemv_fp32(std::ofstream &file, const int m,
+                                 const int n) {
   constexpr float alpha = 1.0f, beta = 0.0f;
   std::vector<float> mat_a(m * n, 0.0f);
   std::vector<float> vec_x(n, 0.0f);
@@ -116,8 +117,8 @@ void benchmark_cutlass_gemv_fp32(const int m, const int n) {
   double flops = 2.0 * m * n;
   double gflops = flops / (ms * 1e6);
 
-  printf("CUTLASS_GEMV_FP32: m=%d n=%d -> %.4f ms, %.2f GFLOPS\n", m, n, ms,
-         gflops);
+  file << "CUTLASS_GEMV: M = " << m << " N = " << n << " -> " << ms << " ms "
+       << gflops << " GFlops\n";
 
   CHECK_CUDA(cudaMemcpy(vec_y.data(), dev_vec_y, m * sizeof(float),
                         cudaMemcpyDeviceToHost));
