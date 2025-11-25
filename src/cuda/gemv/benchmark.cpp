@@ -8,13 +8,14 @@
 using gemv_func = std::function<void(std::ofstream &, const int, const int)>;
 static std::unordered_map<std::string, gemv_func> gemv_map = {
     {"gemv_v0", benchmark_gemv_v0},
+    {"gemv_v1", benchmark_gemv_v1},
     {"cutlass_gemv", benchmark_cutlass_gemv_fp32}};
 
 void launchBenchmark(const std::string &name) {
   gemv_func func = gemv_map[name];
   std::ofstream gemv_file(name + ".txt", std::ios::out);
 
-  for (int stride = 32; stride <= 2048; stride += 32) {
+  for (int stride = 32; stride <= 4096; stride += 32) {
     func(gemv_file, stride, stride);
   }
 }
