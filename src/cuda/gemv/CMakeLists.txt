@@ -2,6 +2,7 @@ add_library(gemv_cuda STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/gemv_v0.cu
   ${CMAKE_CURRENT_SOURCE_DIR}/gemv_v1.cu
   ${CMAKE_CURRENT_SOURCE_DIR}/gemv_v2.cu
+  ${CMAKE_CURRENT_SOURCE_DIR}/gemv_v3.cu
   ${CMAKE_CURRENT_SOURCE_DIR}/gemv_cutlass.cu
 )
 target_include_directories(gemv_cuda PUBLIC ${CUDA_INCLUDE_DIRS})
