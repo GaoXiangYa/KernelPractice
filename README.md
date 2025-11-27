@@ -24,7 +24,7 @@ Practice how to write high performance kernels
 
 - [ ] FlashAttention
 - [ ] LayerNorm
-- [] RMSNorm
+- [ ] RMSNorm
 - [ ] Split
 - [ ] Cat
 - [x] Gemm
