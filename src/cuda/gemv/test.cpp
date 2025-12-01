@@ -134,6 +134,35 @@ TEST(GEMV, gemv_v4) {
   }
 }
 
+TEST(GEMV, gemv_v5) {
+  const int m = 1024, n = 1024;
+  std::vector<float> mat_a(m * n, 0.0f);
+  std::vector<float> vec_x(n, 0.0f);
+  std::vector<float> vec_y(m, 0.0f);
+  std::vector<float> cutlass_vec_y(m, 0.0f);
+  const float alpha = 1.0f, beta = 0.01f;
+
+  init_random(mat_a, -1.0f, 1.0f);
+  init_random(vec_x,-1.0f, 1.0f);
+  init_random(vec_y,-1.0f, 1.0f);
+
+  std::copy(vec_y.begin(), vec_y.end(), cutlass_vec_y.begin());
+
+  gemv_v5(mat_a.data(), vec_x.data(), vec_y.data(), m, n, alpha, beta);
+  cutlass_gemv_fp32(mat_a.data(), vec_x.data(), cutlass_vec_y.data(), m, n,
+                    alpha, beta);
+
+  const float tolerance = 0.01f;
+  for (int i = 0; i < m; ++i) {
+    // std::cout << cutlass_vec_y[i] << " " << vec_y[i] << "\n";
+    if (std::abs(cutlass_vec_y[i] - vec_y[i]) >= tolerance) {
+      std::cout << std::format("cutlass {}, gemv_v5 {}\n", cutlass_vec_y[i],
+                               vec_y[i]);
+      ASSERT_TRUE(false);
+    }
+  }
+}
+
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
