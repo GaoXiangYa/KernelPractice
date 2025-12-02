@@ -59,8 +59,8 @@ void gemv_v6(float *mat_a, float *vec_x, float *vec_y, const int m, const int n,
 
   constexpr int BLOCK_SIZE = 32;
   const int SHARED_MEM_SIZE = n * sizeof(float);
-  dim3 block(BLOCK_SIZE, 2);
-  dim3 grid((m + 2 - 1) / 2);
+  dim3 block(BLOCK_SIZE, 8);
+  dim3 grid((m + 8 - 1) / 8);
 
   gemv_kernel_v6<<<grid, block>>>(
       (const float4 *)dev_mat_a, (const float4 *)dev_vec_x, dev_vec_y, m, n / 4,
@@ -100,8 +100,8 @@ void benchmark_gemv_v6(std::ofstream &file, const int m, const int n) {
                         cudaMemcpyHostToDevice));
 
   constexpr int BLOCK_SIZE = 32;
-  dim3 block(BLOCK_SIZE, 2);
-  dim3 grid((m + 2 - 1) / 2);
+  dim3 block(BLOCK_SIZE, 8);
+  dim3 grid((m + 8 - 1) / 8);
 
   // -----------------------
   // 1. warmup
