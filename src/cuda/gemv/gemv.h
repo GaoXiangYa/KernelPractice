@@ -27,6 +27,9 @@ void gemv_v6(float *mat_a, float *vec_x, float *vec_y, const int m, const int n,
 void cutlass_gemv_fp32(float *mat_a, float *vec_x, float *vec_y, const int m,
                        const int n, const float alpha, const float beta);
 
+void cublas_gemv_fp32(float *mat_a, float *vec_x, float *vec_y, const int m,
+                       const int n, const float alpha, const float beta);
+
 void benchmark_gemv_v0(std::ofstream &file, const int m, const int n);
 
 void benchmark_gemv_v1(std::ofstream &file, const int m, const int n);
@@ -42,3 +45,5 @@ void benchmark_gemv_v5(std::ofstream &file, const int m, const int n);
 void benchmark_gemv_v6(std::ofstream &file, const int m, const int n);
 
 void benchmark_cutlass_gemv_fp32(std::ofstream &file, const int m, const int n);
+
+void benchmark_cublas_gemv_fp32(std::ofstream &file, const int m, const int n);

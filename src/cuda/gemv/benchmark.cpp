@@ -14,7 +14,9 @@ static std::unordered_map<std::string, gemv_func> gemv_map = {
     {"gemv_v4", benchmark_gemv_v4},
     {"gemv_v5", benchmark_gemv_v5},
     {"gemv_v6", benchmark_gemv_v6},
-    {"cutlass_gemv", benchmark_cutlass_gemv_fp32}};
+    {"cutlass_gemv", benchmark_cutlass_gemv_fp32},
+    {"cublas_gemv", benchmark_cublas_gemv_fp32},
+    };
 
 void launchBenchmark(const std::string &name) {
   gemv_func func = gemv_map[name];

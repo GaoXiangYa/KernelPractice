@@ -21,6 +21,8 @@ endif()
 
 if(USE_CUDA)
   enable_language(CUDA)
+  find_package(CUDAToolkit REQUIRED)
+
   set(CMAKE_CUDA_STANDARD 20)
   set(CMAKE_CUDA_SEPARABLE_COMPILATION OFF)
   set(CMAKE_CUDA_ARCHITECTURES 86)
