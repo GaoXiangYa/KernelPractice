@@ -9,20 +9,16 @@ static __global__ void gemv_kernel_v2(float *mat_a, float *vec_x, float *vec_y,
   if (row >= m)
     return;
   const int tid = threadIdx.x;
-  extern __shared__ float shmem[];
-
-  for (int i = tid; i < n; i += THREAD_COUNT) {
-    shmem[i] = vec_x[i];
-  }
-  __syncthreads();
 
   float y = beta * vec_y[row];
   float sum = 0.0f;
   float4 *mat_a_vec = reinterpret_cast<float4 *>(mat_a + row * n);
-  float4 *shmem_vec = reinterpret_cast<float4 *>(shmem);
+  float4 *vec4_x = reinterpret_cast<float4 *>(vec_x);
   for (int i = 0; i < n / 4; ++i) {
-    sum += (mat_a_vec[i].x * shmem_vec[i].x + mat_a_vec[i].y * shmem_vec[i].y +
-            mat_a_vec[i].z * shmem_vec[i].z + mat_a_vec[i].w * shmem_vec[i].w);
+    float4 mat_val = mat_a_vec[i];
+    float4 x_val = vec4_x[i];
+    sum += (mat_val.x * x_val.x + mat_val.y * x_val.y + mat_val.z * x_val.z +
+            mat_val.w * x_val.w);
   }
   vec_y[row] = alpha * sum + y;
 }
