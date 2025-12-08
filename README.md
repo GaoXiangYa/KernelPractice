@@ -9,7 +9,7 @@ Practice how to write high performance kernels
 - [ ] Split
 - [ ] Cat
 - [x] Gemm
-- [ ] Gemv
+- [x] Gemv
 - [ ] SoftMax
 - [ ] Gelu
 - [ ] Silu
