@@ -9,7 +9,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(GTest REQUIRED)
 
-option(USE_CPU "use cpu backend" ON)
+option(USE_CPU "use cpu backend" OFF)
 option(USE_CUDA "use cuda backend" OFF)
 option(USE_OPENCL "use opencl backend" OFF)
 
@@ -35,4 +35,5 @@ endif()
 
 if(USE_OPENCL)
   find_package(OpenCL REQUIRED)
+  add_subdirectory(src/opencl)
 endif()
