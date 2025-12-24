@@ -1,9 +1,62 @@
 #pragma once
 
 #include <CL/cl.h>
+#include <fstream>
+#include <iostream>
+#include <random>
 #include <string>
+#include <vector>
 
-std::string read_file(const std::string &path);
+inline std::string read_file(const std::string &path) {
+  // std::ifstream ifs(path);
+  // if (!ifs) {
+  //   std::cerr << "Error opening file: " << path << std::endl;
+  //   return "";
+  // }
+  // std::string text;
+  // ifs.seekg(0, std::ios::end);
+  // text.resize(ifs.tellg());
+  // ifs.seekg(0, std::ios::beg);
+  // ifs.read(&text[0], text.size());
+  // return text;
+
+  // 打开文件
+  std::ifstream ifs(path, std::ios::in | std::ios::binary);
+  if (!ifs) {
+    std::cerr << "Error: Could not open file " << path << std::endl;
+    return "";
+  }
+
+  // 获取文件的大小
+  ifs.seekg(0, std::ios::end);
+  std::streamsize size = ifs.tellg();
+  ifs.seekg(0, std::ios::beg);
+
+  // 如果文件为空，直接返回空字符串
+  if (size == 0) {
+    return "";
+  }
+
+  // 读取文件内容
+  std::string text(size, '\0'); // 分配足够的空间来存储文件内容
+  if (ifs.read(&text[0], size)) {
+    return text;
+  } else {
+    std::cerr << "Error: Failed to read the file " << path << std::endl;
+    return "";
+  }
+}
+
+template <typename T>
+void set_random_values(std::vector<T> &input, T min, T max) {
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<T> dis(min, max);
+
+  for (auto &num : input) {
+    num = dis(gen);
+  }
+}
 
 inline void print_opencl_limits(cl_device_id device, cl_kernel kernel) {
   size_t max_wg_size;

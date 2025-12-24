@@ -1,11 +1,23 @@
+#include "utils.h"
 #include <CL/opencl.hpp>
 #include <gtest/gtest.h>
-#include "../utils/utils.h"
+#include <numeric>
+#include <vector>
+#include "reduce.h"
+
+float reduce_ref(const std::vector<float>& input) {
+  return std::accumulate(input.begin(), input.end(), 0.0f);
+}
 
 TEST(ReduceTest, reduce_v0) {
-  // Expect two strings to be equal.
-  cl::Context context = cl::Context::getDefault();
-  std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
-  cl::Device device = devices[0];
-  print_opencl_limits(device.get(), nullptr);
+  const int n = 1024;
+  std::vector<float> input(n, 0.0f);
+  set_random_values(input, -1.0f, 1.0f);
+
+  float cpu_output = reduce_ref(input);
+  float ocl_output = 0.0f;
+  reduce_v0(input.data(), &ocl_output, n);
+
+  constexpr float kEpsilon = 1e-3f;
+  EXPECT_NEAR(ocl_output, cpu_output, kEpsilon);
 }
