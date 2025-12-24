@@ -38,3 +38,22 @@ Practice how to write high performance kernels
 - [ ] Permute
 - [ ] LlamaRotatePosition2D
 - [ ] Reduce
+
+# OPENCL
+
+- [ ] FlashAttention
+- [ ] LayerNorm
+- [ ] RMSNorm
+- [ ] Split
+- [ ] Cat
+- [ ] Gemm
+- [ ] Gemv
+- [ ] SoftMax
+- [ ] Gelu
+- [ ] Silu
+- [ ] Swiglu
+- [ ] Add
+- [ ] Mul
+- [ ] Permute
+- [ ] LlamaRotatePosition2D
+- [ ] Reduce
