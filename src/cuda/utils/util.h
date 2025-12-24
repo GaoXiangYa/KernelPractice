@@ -11,6 +11,9 @@
     }                                                                          \
   } while (0)
 
+#define MAX(a, b) a < b ? b : a
+#define MIN(a, b) a < b ? a : b
+
 template <typename T>
 void init_random(std::vector<T> &vec,
                  T min = std::is_integral<T>::value ? 0 : T(0.0),
