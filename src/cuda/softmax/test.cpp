@@ -34,3 +34,21 @@ TEST(softmax, softmax_v0) {
     ASSERT_NEAR(cpu_output[i], cuda_output[i], kEpision);
   }
 }
+
+TEST(softmax, softmax_v1) {
+  constexpr int kInputLen = 1024;
+  std::vector<float> input(kInputLen, 0.0f);
+  std::vector<float> cpu_output(kInputLen, 0.0f);
+  std::vector<float> cuda_output(kInputLen, 0.0f);
+
+  init_random(input, -1.0f, 1.0f);
+
+  softmax_ref(input, cpu_output);
+
+  softmax_v1(input.data(), cuda_output.data(), kInputLen);
+
+  constexpr float kEpision = 1e-3f;
+  for (int i = 0; i < cpu_output.size(); ++i) {
+    ASSERT_NEAR(cpu_output[i], cuda_output[i], kEpision);
+  }
+}
