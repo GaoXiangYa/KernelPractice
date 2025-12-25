@@ -1,6 +1,8 @@
 #pragma once
 
 #include <CL/cl.h>
+#include <CL/opencl.hpp>
+#include <format>
 #include <fstream>
 #include <iostream>
 #include <random>
@@ -8,18 +10,6 @@
 #include <vector>
 
 inline std::string read_file(const std::string &path) {
-  // std::ifstream ifs(path);
-  // if (!ifs) {
-  //   std::cerr << "Error opening file: " << path << std::endl;
-  //   return "";
-  // }
-  // std::string text;
-  // ifs.seekg(0, std::ios::end);
-  // text.resize(ifs.tellg());
-  // ifs.seekg(0, std::ios::beg);
-  // ifs.read(&text[0], text.size());
-  // return text;
-
   // 打开文件
   std::ifstream ifs(path, std::ios::in | std::ios::binary);
   if (!ifs) {
@@ -86,4 +76,17 @@ inline void print_opencl_limits(cl_device_id device, cl_kernel kernel) {
     printf("Kernel limits:\n");
     printf("  Max kernel work-group size: %zu\n", kernel_wg_size);
   }
+}
+
+inline void print_kernel_profiling_info(const char *kernel_name,
+                                        const cl::Event &event) {
+  cl_ulong time_start, time_end;
+
+  auto start = event.getProfilingInfo<CL_PROFILING_COMMAND_START>();
+  auto end = event.getProfilingInfo<CL_PROFILING_COMMAND_END>();
+
+  double nanoSeconds = static_cast<double>(end - start);
+
+  std::cout << std::format("Kernel {} execution time: {} ms\n", kernel_name,
+                           nanoSeconds / 1e6);
 }
