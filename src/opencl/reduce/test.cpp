@@ -47,3 +47,16 @@ TEST(ReduceTest, reduce_v2) {
   constexpr float kEpsilon = 1e-3f;
   EXPECT_NEAR(ocl_output, cpu_output, kEpsilon);
 }
+
+TEST(ReduceTest, reduce_v3) {
+  const int n = 2048;
+  std::vector<float> input(n, 0.0f);
+  set_random_values(input, -1.0f, 1.0f);
+
+  float cpu_output = reduce_ref(input);
+  float ocl_output = 0.0f;
+  reduce_v3(input.data(), &ocl_output, n);
+
+  constexpr float kEpsilon = 1e-3f;
+  EXPECT_NEAR(ocl_output, cpu_output, kEpsilon);
+}
