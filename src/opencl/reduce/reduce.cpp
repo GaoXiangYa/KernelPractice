@@ -12,7 +12,7 @@ void reduce_v0(const float *input, float *output, int n) {
   std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
   cl::Device device = devices[0];
 
-  cl::CommandQueue queue(context, device);
+  cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
 
   const std::string kernel_src = read_file("../src/opencl/reduce/reduce_v0.cl");
   cl::Program program(context, kernel_src);
@@ -37,14 +37,17 @@ void reduce_v0(const float *input, float *output, int n) {
 
   cl::NDRange global_work_size(kNumBlocks);
   cl::NDRange local_work_size(kThreadsPerBlock);
+  cl::Event event;
   queue.enqueueNDRangeKernel(kernel, cl::NullRange, global_work_size,
-                             local_work_size);
+                             local_work_size, nullptr, &event);
   queue.enqueueReadBuffer(output_buffer, CL_TRUE, 0, sizeof(float) * kNumBlocks,
                           temp_output.data());
 
   for (int i = 0; i < kNumBlocks; ++i) {
     *output += temp_output[i];
   }
+
+  print_kernel_profiling_info("reduce_v0_kernel", event);
 }
 
 void reduce_v1(const float *input, float *output, int n) {
@@ -54,7 +57,7 @@ void reduce_v1(const float *input, float *output, int n) {
   std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
   cl::Device device = devices[0];
 
-  cl::CommandQueue queue(context, device);
+  cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
 
   const std::string kernel_src = read_file("../src/opencl/reduce/reduce_v1.cl");
   cl::Program program(context, kernel_src);
@@ -80,14 +83,17 @@ void reduce_v1(const float *input, float *output, int n) {
 
   cl::NDRange global_work_size(kNumBlocks);
   cl::NDRange local_work_size(kThreadsPerBlock);
+  cl::Event event;
   queue.enqueueNDRangeKernel(kernel, cl::NullRange, global_work_size,
-                             local_work_size);
+                             local_work_size, nullptr, &event);
   queue.enqueueReadBuffer(output_buffer, CL_TRUE, 0, sizeof(float) * kNumBlocks,
                           temp_output.data());
 
   for (int i = 0; i < kNumBlocks; ++i) {
     *output += temp_output[i];
   }
+
+  print_kernel_profiling_info("reduce_v1_kernel", event);
 }
 
 void reduce_v2(const float *input, float *output, int n) {
@@ -97,7 +103,7 @@ void reduce_v2(const float *input, float *output, int n) {
   std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
   cl::Device device = devices[0];
 
-  cl::CommandQueue queue(context, device);
+  cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
 
   const std::string kernel_src = read_file("../src/opencl/reduce/reduce_v2.cl");
   cl::Program program(context, kernel_src);
@@ -122,14 +128,17 @@ void reduce_v2(const float *input, float *output, int n) {
 
   cl::NDRange global_work_size(kGlobalSize);
   cl::NDRange local_work_size(kLocalSize);
+  cl::Event event;
   queue.enqueueNDRangeKernel(kernel, cl::NullRange, global_work_size,
-                             local_work_size);
+                             local_work_size, nullptr, &event);
   queue.enqueueReadBuffer(output_buffer, CL_TRUE, 0,
                           sizeof(float) * kGlobalSize, temp_output.data());
 
   for (int i = 0; i < kGlobalSize; ++i) {
     *output += temp_output[i];
   }
+
+  print_kernel_profiling_info("reduce_v2_kernel", event);
 }
 
 void reduce_v3(const float *input, float *output, int n) {
@@ -139,7 +148,7 @@ void reduce_v3(const float *input, float *output, int n) {
   std::vector<cl::Device> devices = context.getInfo<CL_CONTEXT_DEVICES>();
   cl::Device device = devices[0];
 
-  cl::CommandQueue queue(context, device);
+  cl::CommandQueue queue(context, device, CL_QUEUE_PROFILING_ENABLE);
 
   const std::string kernel_src = read_file(
       "/home/felix/PROJECTS/HPC/KernelPractice/src/opencl/reduce/reduce_v3.cl");
@@ -164,14 +173,17 @@ void reduce_v3(const float *input, float *output, int n) {
 
   cl::NDRange global_work_size(kGlobalSize);
   cl::NDRange local_work_size(kLocalSize);
+  cl::Event event;
   queue.enqueueNDRangeKernel(kernel, cl::NullRange, global_work_size,
-                             local_work_size);
+                             local_work_size, nullptr, &event);
   queue.enqueueReadBuffer(output_buffer, CL_TRUE, 0,
                           sizeof(float) * kGlobalSize, temp_output.data());
 
   for (int i = 0; i < kGlobalSize; ++i) {
     *output += temp_output[i];
   }
+
+  print_kernel_profiling_info("reduce_v3_kernel", event);
 }
 
 void reduce_v4(const float *input, float *output, int n) {

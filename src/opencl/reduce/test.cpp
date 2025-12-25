@@ -10,7 +10,7 @@ float reduce_ref(const std::vector<float>& input) {
 }
 
 TEST(ReduceTest, reduce_v0) {
-  const int n = 1024;
+  const int n = 2048;
   std::vector<float> input(n, 0.0f);
   set_random_values(input, -1.0f, 1.0f);
 
