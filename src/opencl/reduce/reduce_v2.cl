@@ -8,7 +8,7 @@ __kernel void reduce_v2_kernel(__global float* input, __global float* output, co
 
   if (gid >= N) return;
 
-  __local float shared_data[256];
+  __local float shared_data[256 + 16]; // 防止bank conflict
   float sum = 0.0f;
 
 #pragma unroll

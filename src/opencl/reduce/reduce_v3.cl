@@ -6,16 +6,13 @@ __kernel void reduce_v3_kernel(__global float4* input, __global float4* output, 
 
   if (gid >= N / 4) return;
 
-  __local float4 shared_data[256];
+  __local float4 shared_data[256 + 16]; // 防止bank conflict
   shared_data[local_id] = input[gid];
   barrier(CLK_LOCAL_MEM_FENCE);
 
   for (int stride = local_size >> 1; stride > 0; stride >>= 1) {
     if (local_id < stride) {
-      shared_data[local_id].x += shared_data[local_id + stride].x;
-      shared_data[local_id].y += shared_data[local_id + stride].y;
-      shared_data[local_id].z += shared_data[local_id + stride].z;
-      shared_data[local_id].w += shared_data[local_id + stride].w;
+      shared_data[local_id] += shared_data[local_id + stride];
     }
     barrier(CLK_LOCAL_MEM_FENCE);
   }
