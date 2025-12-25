@@ -10,7 +10,7 @@ float reduce_ref(const std::vector<float>& input) {
 }
 
 TEST(ReduceTest, reduce_v0) {
-  const int n = 2048;
+  const int n = 4096;
   std::vector<float> input(n, 0.0f);
   set_random_values(input, -1.0f, 1.0f);
 
@@ -23,7 +23,7 @@ TEST(ReduceTest, reduce_v0) {
 }
 
 TEST(ReduceTest, reduce_v1) {
-  const int n = 2048;
+  const int n = 4096;
   std::vector<float> input(n, 0.0f);
   set_random_values(input, -1.0f, 1.0f);
 
@@ -36,7 +36,7 @@ TEST(ReduceTest, reduce_v1) {
 }
 
 TEST(ReduceTest, reduce_v2) {
-  const int n = 2048;
+  const int n = 4096;
   std::vector<float> input(n, 0.0f);
   set_random_values(input, -1.0f, 1.0f);
 
@@ -49,7 +49,7 @@ TEST(ReduceTest, reduce_v2) {
 }
 
 TEST(ReduceTest, reduce_v3) {
-  const int n = 2048;
+  const int n = 4096; 
   std::vector<float> input(n, 0.0f);
   set_random_values(input, -1.0f, 1.0f);
 
@@ -62,7 +62,7 @@ TEST(ReduceTest, reduce_v3) {
 }
 
 TEST(ReduceTest, reduce_v4) {
-  const int n = 2048;
+  const int n = 4096;
   std::vector<float> input(n, 0.0f);
   set_random_values(input, 1.0f, 1.0f);
 

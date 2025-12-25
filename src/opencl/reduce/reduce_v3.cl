@@ -6,7 +6,7 @@ __kernel void reduce_v3_kernel(__global float4* input, __global float4* output, 
 
   if (gid >= N / 4) return;
 
-  __local float4 shared_data[256 + 16]; // 防止bank conflict
+  __local float4 shared_data[256 + 17]; // 防止bank conflict
   shared_data[local_id] = input[gid];
   barrier(CLK_LOCAL_MEM_FENCE);
 

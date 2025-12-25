@@ -213,7 +213,7 @@ void reduce_v4(const float *input, float *output, int n) {
 
   kernel.setArg(0, input_buffer);
   kernel.setArg(1, output_buffer);
-  kernel.setArg(2, cl::Local(kLocalSize * sizeof(cl_float4) + 16));
+  kernel.setArg(2, cl::Local(kLocalSize * sizeof(cl_float4) + 21));
   kernel.setArg(3, n);
 
   cl::NDRange global_work_size(kGlobalSize);
