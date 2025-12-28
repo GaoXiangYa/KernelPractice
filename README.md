@@ -56,4 +56,4 @@ Practice how to write high performance kernels
 - [ ] Mul
 - [ ] Permute
 - [ ] LlamaRotatePosition2D
-- [ ] Reduce
+- [x] Reduce
