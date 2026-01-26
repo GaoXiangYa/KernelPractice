@@ -5,11 +5,12 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <random>
 #include <string>
 #include <vector>
 
-inline std::string read_file(const std::string &path) {
+inline std::string read_file(const std::string& path) {
   // 打开文件
   std::ifstream ifs(path, std::ios::in | std::ios::binary);
   if (!ifs) {
@@ -28,7 +29,7 @@ inline std::string read_file(const std::string &path) {
   }
 
   // 读取文件内容
-  std::string text(size, '\0'); // 分配足够的空间来存储文件内容
+  std::string text(size, '\0');  // 分配足够的空间来存储文件内容
   if (ifs.read(&text[0], size)) {
     return text;
   } else {
@@ -38,12 +39,12 @@ inline std::string read_file(const std::string &path) {
 }
 
 template <typename T>
-void set_random_values(std::vector<T> &input, T min, T max) {
+void set_random_values(std::vector<T>& input, T min, T max) {
   std::random_device rd;
   std::mt19937 gen(rd());
   std::uniform_real_distribution<T> dis(min, max);
 
-  for (auto &num : input) {
+  for (auto& num : input) {
     num = dis(gen);
   }
 }
@@ -78,8 +79,8 @@ inline void print_opencl_limits(cl_device_id device, cl_kernel kernel) {
   }
 }
 
-inline void print_kernel_profiling_info(const char *kernel_name,
-                                        const cl::Event &event) {
+inline void print_kernel_profiling_info(const char* kernel_name,
+                                        const cl::Event& event) {
   cl_ulong time_start, time_end;
 
   auto start = event.getProfilingInfo<CL_PROFILING_COMMAND_START>();
@@ -90,3 +91,48 @@ inline void print_kernel_profiling_info(const char *kernel_name,
   std::cout << std::format("Kernel {} execution time: {} ms\n", kernel_name,
                            nanoSeconds / 1e6);
 }
+
+class OCLKernel {
+public:
+  explicit OCLKernel(const std::string& source_path,
+                     const std::string& kernel_name,
+                     const std::string& build_options = ""): source_path_(source_path),
+                                                               kernel_name_(kernel_name) {
+    context_ = cl::Context::getDefault();
+    std::vector<cl::Device> devices = context_.getInfo<CL_CONTEXT_DEVICES>();
+    cl::Device device = devices[0];
+
+    queue_ = std::make_unique<cl::CommandQueue>(context_, device, CL_QUEUE_PROFILING_ENABLE);
+    const std::string kernel_src = read_file(source_path);
+    cl::Program program(context_, kernel_src);
+    program.build({device}, build_options.c_str());
+    kernel_ = cl::Kernel(program, kernel_name.c_str());
+  }
+
+  const cl::Context& GetKernelContext() const { return context_; }
+
+  const std::unique_ptr<cl::CommandQueue>& GetCommandQueue() const { return queue_; }
+
+  const cl::Kernel& GetKernel() const { return kernel_; }
+
+  void ProflingKernel(const cl::Event& event) {
+    print_kernel_profiling_info(kernel_name_.c_str(), event);
+  }
+  // Specialize the template for more complex arguments if needed
+  template <typename T>
+  void set_kernel_args(const T& arg, size_t index) {
+    kernel_.setArg(index, arg);
+  }
+
+  template <typename... Args>
+  void set_kernel_args(size_t index, Args&&... args) {
+    (set_kernel_args(std::forward<Args>(args), index++), ...);
+  }
+
+private:
+  std::string source_path_;
+  std::string kernel_name_;
+  cl::Kernel kernel_;
+  cl::Context context_;
+  std::unique_ptr<cl::CommandQueue> queue_;
+};

@@ -58,3 +58,47 @@ TEST(GEMM, gemm_v1) {
     EXPECT_NEAR(C_ocl[i], C_cpu[i], kEpsilon);
   }
 }
+
+TEST(GEMM, gemm_v2) {
+  constexpr int M = 2048;
+  constexpr int N = 128;
+  constexpr int K = 512;
+
+  std::vector<float> A(M * K, 0.0f);
+  std::vector<float> B(K * N, 0.0f);
+  std::vector<float> C_cpu(M * N, 0.0f);
+  std::vector<float> C_ocl(M * N, 0.0f);
+
+  set_random_values(A, -1.0f, 1.0f);
+  set_random_values(B, -1.0f, 1.0f);
+
+  gemm_ref(A.data(), B.data(), C_cpu.data(), M, N, K);
+  gemm_v2(A.data(), B.data(), C_ocl.data(), M, N, K);
+
+  constexpr float kEpsilon = 1e-3f;
+  for (int i = 0; i < M * N; ++i) {
+    ASSERT_NEAR(C_ocl[i], C_cpu[i], kEpsilon);
+  }
+}
+
+TEST(GEMM, gemm_v3) {
+  constexpr int M = 2048;
+  constexpr int N = 128;
+  constexpr int K = 512;
+
+  std::vector<float> A(M * K, 0.0f);
+  std::vector<float> B(K * N, 0.0f);
+  std::vector<float> C_cpu(M * N, 0.0f);
+  std::vector<float> C_ocl(M * N, 0.0f);
+
+  set_random_values(A, 1.0f, 1.0f);
+  set_random_values(B, 1.0f, 1.0f);
+
+  gemm_ref(A.data(), B.data(), C_cpu.data(), M, N, K);
+  gemm_v3(A.data(), B.data(), C_ocl.data(), M, N, K);
+
+  constexpr float kEpsilon = 1e-3f;
+  for (int i = 0; i < M * N; ++i) {
+    ASSERT_NEAR(C_ocl[i], C_cpu[i], kEpsilon);
+  }
+}
