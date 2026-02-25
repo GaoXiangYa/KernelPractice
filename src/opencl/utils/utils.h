@@ -2,6 +2,7 @@
 
 #include <CL/cl.h>
 #include <CL/opencl.hpp>
+#include <cstddef>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -114,7 +115,7 @@ public:
   const std::unique_ptr<cl::CommandQueue>& GetCommandQueue() const { return queue_; }
 
   const cl::Kernel& GetKernel() const { return kernel_; }
-
+  
   void ProflingKernel(const cl::Event& event) {
     print_kernel_profiling_info(kernel_name_.c_str(), event);
   }
