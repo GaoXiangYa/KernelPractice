@@ -3,7 +3,8 @@
 #include "gemm.h"
 #include "utils.h"
 
-void gemm_ref(const float* A, const float* B, float* C, int M, int N, int K, float alpha=1.0f, float beta=0.0f) {
+void gemm_ref(const float* A, const float* B, float* C, int M, int N, int K,
+              float alpha = 1.0f, float beta = 0.0f) {
   for (int m = 0; m < M; ++m) {
     for (int n = 0; n < N; ++n) {
       float sum = 0.0f;
@@ -118,6 +119,28 @@ TEST(GEMM, gemm_v4) {
 
   gemm_ref(A.data(), B.data(), C_cpu.data(), M, N, K);
   gemm_v4(A.data(), B.data(), C_ocl.data(), M, N, K);
+
+  constexpr float kEpsilon = 1e-3f;
+  for (int i = 0; i < M * N; ++i) {
+    ASSERT_NEAR(C_ocl[i], C_cpu[i], kEpsilon);
+  }
+}
+
+TEST(GEMM, gemm_v5) {
+  constexpr int M = 4096;
+  constexpr int N = 1024;
+  constexpr int K = 2048;
+
+  std::vector<float> A(M * K, 0.0f);
+  std::vector<float> B(K * N, 0.0f);
+  std::vector<float> C_cpu(M * N, 0.0f);
+  std::vector<float> C_ocl(M * N, 0.0f);
+
+  set_random_values(A, -1.0f, 1.0f);
+  set_random_values(B, -1.0f, 1.0f);
+
+  gemm_ref(A.data(), B.data(), C_cpu.data(), M, N, K, -1.0, 0.1);
+  gemm_v5(A.data(), B.data(), C_ocl.data(), M, N, K, -1.0, 0.1);
 
   constexpr float kEpsilon = 1e-3f;
   for (int i = 0; i < M * N; ++i) {
