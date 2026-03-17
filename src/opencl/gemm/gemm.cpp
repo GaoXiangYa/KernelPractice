@@ -163,13 +163,14 @@ void gemm_v3(const float* A, const float* B, float* C, int M, int N, int K,
 void gemm_v4(const float* A, const float* B, float* C, int M, int N, int K,
              float alpha, float beta) {
   constexpr int kVecWidth = 4;
-  constexpr int kThreadCount = 16;
+  constexpr int kTileM = 32;
+  constexpr int kTileN = 32;
 
-  cl::NDRange local_work_size(kThreadCount / kVecWidth, kThreadCount);
-  cl::NDRange global_work_size((N + kThreadCount - 1) / kThreadCount *
-                                   (kThreadCount / kVecWidth),
-                               (M + kThreadCount - 1) / kThreadCount *
-                                   kThreadCount);
+  cl::NDRange local_work_size(kTileN / kVecWidth, kTileM);
+  cl::NDRange global_work_size((N + kTileN - 1) / kTileN *
+                                   (kTileN / kVecWidth),
+                               (M + kTileM - 1) / kTileM *
+                                   kTileM);
 
   const std::string build_options = "";
 
