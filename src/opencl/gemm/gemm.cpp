@@ -124,7 +124,7 @@ void gemm_v3(const float* A, const float* B, float* C, int M, int N, int K,
   constexpr int kCoarseFactor = 4;
 
   int num_groups_x =
-      (N + kBlockSize * kCoarseFactor - 1) / (kBlockSize* kCoarseFactor);
+      (N + kBlockSize * kCoarseFactor - 1) / (kBlockSize * kCoarseFactor);
   int num_groups_y = (M + kBlockSize - 1) / kBlockSize;
 
   cl::NDRange global_work_size(num_groups_x * kBlockSize,
@@ -162,21 +162,16 @@ void gemm_v3(const float* A, const float* B, float* C, int M, int N, int K,
 
 void gemm_v4(const float* A, const float* B, float* C, int M, int N, int K,
              float alpha, float beta) {
-  const int kGlobalSizeM = M;
-  const int kGlobalSizeN = N;
-  constexpr int kBlockSize = 16;
-  constexpr int kCoarseFactor = 4;
-  constexpr int kDataWidth = 4;
+  constexpr int kVecWidth = 4;
+  constexpr int kThreadCount = 16;
 
-  int num_groups_x =
-      (N + kBlockSize * kCoarseFactor - 1) / (kBlockSize* kCoarseFactor);
-  int num_groups_y = (M + kBlockSize - 1) / kBlockSize;
+  cl::NDRange local_work_size(kThreadCount / kVecWidth, kThreadCount);
+  cl::NDRange global_work_size((N + kThreadCount - 1) / kThreadCount *
+                                   (kThreadCount / kVecWidth),
+                               (M + kThreadCount - 1) / kThreadCount *
+                                   kThreadCount);
 
-  cl::NDRange global_work_size(num_groups_x * kBlockSize,
-                               num_groups_y * kBlockSize);
-  cl::NDRange local_work_size(kBlockSize, kBlockSize / kDataWidth);
-
-  const std::string build_options = " -funsafe-max-local-work-size=2 ";
+  const std::string build_options = "";
 
   OCLKernel ocl_kernel("../src/opencl/gemm/gemm_v4.cl", "gemm_v4_kernel",
                        build_options);
