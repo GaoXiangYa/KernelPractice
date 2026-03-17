@@ -113,8 +113,8 @@ TEST(GEMM, gemm_v4) {
   std::vector<float> C_cpu(M * N, 0.0f);
   std::vector<float> C_ocl(M * N, 0.0f);
 
-  set_random_values(A, 1.0f, 1.0f);
-  set_random_values(B, 1.0f, 1.0f);
+  set_random_values(A, -1.0f, 1.0f);
+  set_random_values(B, -1.0f, 1.0f);
 
   gemm_ref(A.data(), B.data(), C_cpu.data(), M, N, K);
   gemm_v4(A.data(), B.data(), C_ocl.data(), M, N, K);
