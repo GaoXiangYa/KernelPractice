@@ -17,6 +17,7 @@ static inline float mul_vec(__local float* vec_a, __local float* vec_b,
   return sum;
 }
 
+// shared memory
 __kernel void gemm_v2_kernel(__global const float* A, __global const float* B,
                              __global float* C, const int M, const int N,
                              const int K, float alpha, float beta) {

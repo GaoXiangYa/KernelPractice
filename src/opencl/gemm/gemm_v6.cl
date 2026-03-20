@@ -5,6 +5,7 @@
 #define COARSE_FACTOR 4
 
 // A[M x K], B[K x N], C[M x N]
+// shared memory + thread coarse + vectorization + transpose shmem_b
 __kernel void gemm_v6_kernel(__global const float4* A, __global const float4* B,
                              __global float4* C, const int M, const int N,
                              const int K, float alpha, float beta) {

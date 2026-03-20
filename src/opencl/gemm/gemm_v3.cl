@@ -2,22 +2,7 @@
 #define COARSE_FACTOR 4
 #define TILE_VEC 4 
 
-static inline float mul_vec(__local float* vec_a, __local float* vec_b,
-                            const int local_row, const int local_col) {
-  float sum = 0;
-  // #pragma unroll
-  for (int t = 0; t < TILE_K; t += TILE_VEC) {
-    float4 val_a = vload4(0, &vec_a[local_row * TILE_K + t]);
-    float4 val_b = {vec_b[t * TILE_K + local_col],
-                    vec_b[(t + 1) * TILE_K + local_col],
-                    vec_b[(t + 2) * TILE_K + local_col],
-                    vec_b[(t + 3) * TILE_K + local_col]};
-    sum += (val_a.x * val_b.x + val_a.y * val_b.y + val_a.z * val_b.z +
-            val_a.w * val_b.w);
-  }
-  return sum;
-}
-
+// thread coarse + thread_memory
 __kernel void gemm_v3_kernel(__global const float* A, __global const float* B,
                              __global float* C, const int M, const int N,
                              const int K, float alpha, float beta) {
