@@ -172,7 +172,7 @@ TEST(GEMM, gemm_v6) {
 
 TEST(GEMM, gemm_v7) {
   constexpr int M = 4096;
-  constexpr int N = 1024;
+  constexpr int N = 1024; 
   constexpr int K = 2048;
 
   std::vector<float> A(M * K, 0.0f);
@@ -180,11 +180,11 @@ TEST(GEMM, gemm_v7) {
   std::vector<float> C_cpu(M * N, 0.0f);
   std::vector<float> C_ocl(M * N, 0.0f);
 
-  set_random_values(A, 1.0f, 1.0f);
-  set_random_values(B, 1.0f, 1.0f);
+  set_random_values(A, -1.0f, 1.0f);
+  set_random_values(B, -1.0f, 1.0f);
 
-  gemm_ref(A.data(), B.data(), C_cpu.data(), M, N, K, 1.0, 0.0);
-  gemm_v7(A.data(), B.data(), C_ocl.data(), M, N, K, 1.0, 0.0);
+  gemm_ref(A.data(), B.data(), C_cpu.data(), M, N, K, 1.0, 0.1f);
+  gemm_v7(A.data(), B.data(), C_ocl.data(), M, N, K, 1.0, 0.1f);
 
   constexpr float kEpsilon = 1e-3f;
   for (int i = 0; i < M * N; ++i) {

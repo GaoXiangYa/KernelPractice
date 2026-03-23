@@ -207,7 +207,8 @@ void gemm_v5(const float* A, const float* B, float* C, int M, int N, int K,
   constexpr int kCoarseFactor = 4;
 
   cl::NDRange local_work_size(kTileN / kVecWidth, kTileM);
-  cl::NDRange global_work_size((N + kTileN - 1) / kTileN * (kTileN / kVecWidth) / kCoarseFactor,
+  cl::NDRange global_work_size((N + kTileN - 1) / kTileN *
+                                   (kTileN / kVecWidth) / kCoarseFactor,
                                (M + kTileM - 1) / kTileM * kTileM);
 
   const std::string build_options = "";
@@ -247,7 +248,8 @@ void gemm_v6(const float* A, const float* B, float* C, int M, int N, int K,
   constexpr int kCoarseFactor = 4;
 
   cl::NDRange local_work_size(kTileN / kVecWidth, kTileM);
-  cl::NDRange global_work_size((N + kTileN - 1) / kTileN * (kTileN / kVecWidth) / kCoarseFactor,
+  cl::NDRange global_work_size((N + kTileN - 1) / kTileN *
+                                   (kTileN / kVecWidth) / kCoarseFactor,
                                (M + kTileM - 1) / kTileM * kTileM);
 
   const std::string build_options = "";
@@ -281,13 +283,14 @@ void gemm_v6(const float* A, const float* B, float* C, int M, int N, int K,
 
 void gemm_v7(const float* A, const float* B, float* C, int M, int N, int K,
              float alpha, float beta) {
-  constexpr int kCoarseFactor = 4;
+  constexpr int kRegM = 4;
+  constexpr int kRegN = 4;
   constexpr int kTileM = 16;
   constexpr int kTileN = 16;
 
   cl::NDRange local_work_size(kTileN, kTileM);
-  cl::NDRange global_work_size((N + (kTileN + kCoarseFactor) - 1) / (kTileN + kCoarseFactor) * kTileN ,
-                               (M + kTileM - 1) / kTileM * kTileM);
+  cl::NDRange global_work_size((N + kTileN * kRegN- 1) / (kTileN * kRegN) * kTileN,
+                               (M + kTileM * kRegM - 1) / (kTileM * kRegM) * kTileM);
 
   const std::string build_options = "";
 
