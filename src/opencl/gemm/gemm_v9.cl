@@ -24,8 +24,8 @@ __kernel void gemm_v9_kernel(__global const float* A, __global const float* B,
   const int local_col = get_local_id(0);
   const int local_row = get_local_id(1);
 
-  const int global_col_base = get_group_id(0) * TILE_M * REG_TILE_M + local_col;
-  const int global_row_base = get_group_id(1) * TILE_N * REG_TILE_N + local_row;
+  const int global_col_base = get_group_id(0) * TILE_N * REG_TILE_N + local_col;
+  const int global_row_base = get_group_id(1) * TILE_M * REG_TILE_M + local_row;
 
   // shared memory double buffer
   __local shmem_a[2][REG_TILE_M * TILE_M * TILE_K];
@@ -41,8 +41,6 @@ __kernel void gemm_v9_kernel(__global const float* A, __global const float* B,
 
   int shmem_cur = 0;
   int shmem_next = 1;
-  int reg_cur = 0;
-  int reg_next = 1;
 
   int num_tiles = (K + TILE_K - 1) / TILE_K;
   int ph = 0;
@@ -52,48 +50,37 @@ __kernel void gemm_v9_kernel(__global const float* A, __global const float* B,
   int a_stride = TILE_M * TILE_K;
   int b_stride = TILE_K * TILE_N;
 
+  // preload tile 0
+  {
 #pragma unroll
-  // load A from global memory to shared memory
-  for (int m = 0; m < REG_TILE_M; ++m) {
-    int global_row = global_row_base + m * TILE_K;
-    if (global_row < M && tiled_col < K) {
-      shmem_a[shmem_cur][m * a_stride + a_idx] = A[global_row * K + tiled_col];
-    } else {
-      shmem_a[shmem_cur][m * a_stride + a_idx] = 0.0f;
+    // load A from global memory to shared memory
+    for (int m = 0; m < REG_TILE_M; ++m) {
+      int global_row = global_row_base + m * TILE_M;
+      if (global_row < M && tiled_col < K) {
+        shmem_a[shmem_cur][m * a_stride + a_idx] =
+            A[global_row * K + tiled_col];
+      } else {
+        shmem_a[shmem_cur][m * a_stride + a_idx] = 0.0f;
+      }
     }
-  }
 
 #pragma unroll
-  // load B from global memory to shared memory
-  for (int n = 0; n < REG_TILE_N; ++n) {
-    int global_col = global_col_base + n * TILE_N;
-    if (tiled_row < K && global_col < N) {
-      shmem_b[shmem_cur][n * b_stride + b_idx] = B[tiled_row * N + global_col];
-    } else {
-      shmem_b[shmem_cur][n * b_stride + b_idx] = 0.0f;
+    // load B from global memory to shared memory
+    for (int n = 0; n < REG_TILE_N; ++n) {
+      int global_col = global_col_base + n * TILE_N;
+      if (tiled_row < K && global_col < N) {
+        shmem_b[shmem_cur][n * b_stride + b_idx] =
+            B[tiled_row * N + global_col];
+      } else {
+        shmem_b[shmem_cur][n * b_stride + b_idx] = 0.0f;
+      }
     }
   }
 
   barrier(CLK_LOCAL_MEM_FENCE);
 
-#pragma unroll
-  // load A from shared memory to register
-  for (int m = 0; m < REG_TILE_M; ++m) {
-    frag_a[reg_cur][m] =
-        shmem_a[shmem_cur][m * a_stride + local_row * TILE_K + 0];
-  }
-
-#pragma unroll
-  // load B from shared memory to register
-  for (int n = 0; n < REG_TILE_N; ++n) {
-    frag_b[reg_cur][n] =
-        shmem_b[shmem_cur][n * a_stride + 0 * TILE_N + local_col];
-  }
-
-  barrier(CLK_LOCAL_MEM_FENCE);
-
-  do {
-    shmem_next = shmem_cur ^ 1;
+  // tile pileline
+  for (; ph < num_tiles; ++ph) {
     // async load next tile from global memory
     if (ph + 1 < num_tiles) {
       base = (ph + 1) * TILE_K;
@@ -103,7 +90,7 @@ __kernel void gemm_v9_kernel(__global const float* A, __global const float* B,
 #pragma unroll
       // load A from global memory to shared memory
       for (int m = 0; m < REG_TILE_M; ++m) {
-        int global_row = global_row_base + m * TILE_K;
+        int global_row = global_row_base + m * TILE_M;
         if (global_row < M && tiled_col < K) {
           shmem_a[shmem_next][m * a_stride + a_idx] =
               A[global_row * K + tiled_col];
@@ -123,49 +110,68 @@ __kernel void gemm_v9_kernel(__global const float* A, __global const float* B,
           shmem_b[shmem_next][n * b_stride + b_idx] = 0.0f;
         }
       }
-
-      barrier(CLK_LOCAL_MEM_FENCE);
     }
-    for (int k = 0; k < TILE_K - 1; ++k) {
-      reg_next = reg_cur ^ 1;
-      // preload next fragment from shared memory to register
-      if (k + 1 < TILE_K) {
+
+    // register pipeline
+    // preload k = 0
+    int reg_cur = 0;
+    int reg_next = 1;
+    int k = 0;
 #pragma unroll
-        // load A from shared memory to register
-        for (int m = 0; m < REG_TILE_M; ++m) {
-          frag_a[reg_cur][m] =
-              shmem_a[shmem_cur][m * a_stride + local_row * TILE_K + (k + 1)];
-        }
+    // load A from shared memory to register
+    for (int m = 0; m < REG_TILE_M; ++m) {
+      frag_a[reg_cur][m] =
+          shmem_a[shmem_cur][m * a_stride + local_row * TILE_K + k];
+    }
 
 #pragma unroll
-        // load B from shared memory to register
-        for (int n = 0; n < REG_TILE_N; ++n) {
-          frag_b[reg_cur][n] =
-              shmem_b[shmem_cur][n * a_stride + (k + 1) * TILE_N + local_col];
-        }
+    // load B from shared memory to register
+    for (int n = 0; n < REG_TILE_N; ++n) {
+      frag_b[reg_cur][n] =
+          shmem_b[shmem_cur][n * b_stride + k * TILE_N + local_col];
+    }
+    for (; k < TILE_K - 1; ++k) {
+      // reg_next = reg_cur ^ 1;
+      // preload next fragment from shared memory to register
+#pragma unroll
+      // load A from shared memory to register
+      for (int m = 0; m < REG_TILE_M; ++m) {
+        frag_a[reg_next][m] =
+            shmem_a[shmem_cur][m * a_stride + local_row * TILE_K + (k + 1)];
+      }
+
+#pragma unroll
+      // load B from shared memory to register
+      for (int n = 0; n < REG_TILE_N; ++n) {
+        frag_b[reg_next][n] =
+            shmem_b[shmem_cur][n * b_stride + (k + 1) * TILE_N + local_col];
       }
 
 #pragma unroll
       for (int m = 0; m < REG_TILE_M; ++m) {
 #pragma unroll
         for (int n = 0; n < REG_TILE_N; ++n) {
-          frag_c[m * REG_TILE_N + n] += frag_a[m] * frag_b[n];
+          frag_c[m * REG_TILE_N + n] += frag_a[reg_cur][m] * frag_b[reg_cur][n];
         }
       }
       reg_cur ^= 1;
+      reg_next ^= 1;
     }
-
+    // compute last k
 #pragma unroll
     for (int m = 0; m < REG_TILE_M; ++m) {
 #pragma unroll
       for (int n = 0; n < REG_TILE_N; ++n) {
-        frag_c[m * REG_TILE_N + n] += frag_a[m] * frag_b[n];
+        frag_c[m * REG_TILE_N + n] += frag_a[reg_cur][m] * frag_b[reg_cur][n];
       }
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);
     shmem_cur ^= 1;
-  } while (ph < num_tiles);
+    shmem_next ^= 1;
+  }
+
+  // barrier(CLK_LOCAL_MEM_FENCE);
 
 #pragma unroll
   // store C(i, j) in global memory
