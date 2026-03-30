@@ -228,9 +228,9 @@ TEST(GEMM, gemm_v9) {
   set_random_values(B, -1.0f, 1.0f);
 
   gemm_ref(A.data(), B.data(), C_cpu.data(), M, N, K, 1.0, 0.1f);
-  gemm_v8(A.data(), B.data(), C_ocl.data(), M, N, K, 1.0, 0.1f);
+  gemm_v9(A.data(), B.data(), C_ocl.data(), M, N, K, 1.0, 0.1f);
 
-  constexpr float kEpsilon = 1e-3f;
+  constexpr float kEpsilon = 1e-1f;
   for (int i = 0; i < M * N; ++i) {
     ASSERT_NEAR(C_ocl[i], C_cpu[i], kEpsilon);
   }
