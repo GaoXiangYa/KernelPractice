@@ -31,8 +31,8 @@ __kernel void gemm_v10_kernel(__global const float* restrict A,
   const int local_col = get_local_id(0);
   const int local_row = get_local_id(1);
 
-  const int global_col_base = get_group_id(0) * TILE_N * REG_TILE_N + local_col;
-  const int global_row_base = get_group_id(1) * TILE_M * REG_TILE_M + local_row;
+  const int global_col_base = get_group_id(0) * TILE_N * REG_TILE_N;
+  const int global_row_base = get_group_id(1) * TILE_M * REG_TILE_M;
 
   const int tid = local_row * get_local_size(0) + local_col;
   const int num_threads = get_local_size(0) * get_local_size(1);
@@ -58,10 +58,10 @@ __kernel void gemm_v10_kernel(__global const float* restrict A,
       int m_block = idx / (TILE_M * TILE_K);
       int rem = idx % (TILE_M * TILE_K);
 
-      int row = rem >> 5;
+      int row = rem / TILE_K;
       int col = rem & (TILE_K - 1);
 
-      int global_row = global_row_base + row;
+      int global_row = global_row_base + m_block * TILE_M + row;
       int global_col = base + col;
 
       if (global_row < M && global_col < K) {
@@ -77,7 +77,7 @@ __kernel void gemm_v10_kernel(__global const float* restrict A,
       int n_block = idx / (TILE_K * TILE_N);
       int rem = idx % (TILE_K * TILE_N);
 
-      int row = rem >> 4;
+      int row = rem / TILE_N;
       int col = rem & (TILE_N - 1);
 
       int global_row = base + row;
@@ -105,10 +105,10 @@ __kernel void gemm_v10_kernel(__global const float* restrict A,
         int m_block = idx / (TILE_M * TILE_K);
         int rem = idx % (TILE_M * TILE_K);
 
-        int row = rem >> 5;
+        int row = rem / TILE_K;
         int col = rem & (TILE_K - 1);
 
-        int global_row = global_row_base + m_block * TILE_K;
+        int global_row = global_row_base + m_block * TILE_M + row;
         int global_col = base + col;
 
         if (global_row < M && global_col < K) {
@@ -124,11 +124,11 @@ __kernel void gemm_v10_kernel(__global const float* restrict A,
         int n_block = idx / (TILE_K * TILE_N);
         int rem = idx % (TILE_K * TILE_N);
 
-        int row = rem >> 4;
+        int row = rem / TILE_N;
         int col = rem & (TILE_N - 1);
 
         int global_row = base + row;
-        int global_col = global_col_base + n_block * TILE_N;
+        int global_col = global_col_base + n_block * TILE_N + col;
 
         if (global_row < K && global_col < N) {
           shmem_b[shmem_next][n_block][row * (TILE_N + 1) + col] =
@@ -197,11 +197,11 @@ __kernel void gemm_v10_kernel(__global const float* restrict A,
 // =========================
 #pragma unroll
   for (int m = 0; m < REG_TILE_M; ++m) {
-    const int global_row = global_row_base + m * TILE_M;
+    const int global_row = global_row_base + m * TILE_M + local_row;
     if (global_row < M) {
 #pragma unroll
       for (int n = 0; n < REG_TILE_N; ++n) {
-        const int global_col = global_col_base + n * TILE_N;
+        const int global_col = global_col_base + n * TILE_N + local_col;
         if (global_col < N) {
           const int idx = global_row * N + global_col;
           C[idx] = alpha * frag_c[m * REG_TILE_N + n] + beta * C[idx];
