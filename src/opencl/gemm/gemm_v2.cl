@@ -1,4 +1,4 @@
-#define TILE_K 32
+#define TILE_K 16
 #define TILE_VEC 4
 
 static inline float mul_vec(__local float* vec_a, __local float* vec_b,

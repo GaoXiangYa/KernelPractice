@@ -6,14 +6,14 @@
 
 void gemm_v0(const float* A, const float* B, float* C, int M, int N, int K,
              float alpha, float beta) {
-  const std::string build_options = "-funsafe-max-local-work-size=2";
+  const std::string build_options = "";
   OCLKernel ocl_kernel("../src/opencl/gemm/gemm_v0.cl", "gemm_v0_kernel",
                        build_options);
   const int kGlobalSizeM = M;
   const int kGlobalSizeN = N;
 
-  cl::NDRange global_work_size(kGlobalSizeM, kGlobalSizeN);
-  cl::NDRange local_work_size(32, 32);
+  cl::NDRange global_work_size(kGlobalSizeN, kGlobalSizeM);
+  cl::NDRange local_work_size(16, 16);
 
   cl::Buffer buffer_A(ocl_kernel.GetKernelContext(),
                       CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
@@ -41,14 +41,14 @@ void gemm_v0(const float* A, const float* B, float* C, int M, int N, int K,
 
 void gemm_v1(const float* A, const float* B, float* C, int M, int N, int K,
              float alpha, float beta) {
-  const std::string build_options = "-funsafe-max-local-work-size=2";
+  const std::string build_options = "";
   OCLKernel ocl_kernel("../src/opencl/gemm/gemm_v1.cl", "gemm_v1_kernel",
                        build_options);
   const int kGlobalSizeM = M;
   const int kGlobalSizeN = N;
 
   cl::NDRange global_work_size(kGlobalSizeM, kGlobalSizeN);
-  cl::NDRange local_work_size(32, 32);
+  cl::NDRange local_work_size(16, 16);
 
   cl::Buffer buffer_A(ocl_kernel.GetKernelContext(),
                       CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
@@ -78,7 +78,7 @@ void gemm_v2(const float* A, const float* B, float* C, int M, int N, int K,
              float alpha, float beta) {
   const int kGlobalSizeM = M;
   const int kGlobalSizeN = N;
-  constexpr int kBlockSize = 32;
+  constexpr int kBlockSize = 16;
 
   cl::NDRange global_work_size((kGlobalSizeN + kBlockSize - 1) / kBlockSize *
                                    kBlockSize,
@@ -131,7 +131,7 @@ void gemm_v3(const float* A, const float* B, float* C, int M, int N, int K,
                                num_groups_y * kBlockSize);
   cl::NDRange local_work_size(kBlockSize, kBlockSize);
 
-  const std::string build_options = " -funsafe-max-local-work-size=2 ";
+  const std::string build_options = "";
 
   OCLKernel ocl_kernel("../src/opencl/gemm/gemm_v3.cl", "gemm_v3_kernel",
                        build_options);

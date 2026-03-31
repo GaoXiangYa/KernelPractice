@@ -1,8 +1,8 @@
 __kernel void gemm_v0_kernel(__global const float* A, __global const float* B,
                         __global float* C, const int M, const int N,
                         const int K, float alpha, float beta) {
-  const int row = get_global_id(0);
-  const int col = get_global_id(1);
+  const int row = get_global_id(1);
+  const int col = get_global_id(0);
 
   if (row >= M || col >= N)
     return;
