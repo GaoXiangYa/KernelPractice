@@ -401,3 +401,43 @@ void gemm_v9(const float* A, const float* B, float* C, int M, int N, int K,
   ocl_kernel.ProflingKernel(event);
 }
 
+void gemm_v10(const float* A, const float* B, float* C, int M, int N, int K,
+             float alpha, float beta) {
+  constexpr int kRegM = 4;
+  constexpr int kRegN = 4;
+  constexpr int kTileM = 16;
+  constexpr int kTileN = 16;
+
+  cl::NDRange local_work_size(kTileN, kTileM);
+  cl::NDRange global_work_size((N + kTileN * kRegN- 1) / (kTileN * kRegN) * kTileN,
+                               (M + kTileM * kRegM - 1) / (kTileM * kRegM) * kTileM);
+
+  const std::string build_options = "";
+
+  OCLKernel ocl_kernel("../src/opencl/gemm/gemm_v10.cl", "gemm_v10_kernel",
+                       build_options);
+
+  cl::Buffer buffer_A(ocl_kernel.GetKernelContext(),
+                      CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                      sizeof(float) * M * K, (void*) A);
+  cl::Buffer buffer_B(ocl_kernel.GetKernelContext(),
+                      CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                      sizeof(float) * K * N, (void*) B);
+  cl::Buffer buffer_C(ocl_kernel.GetKernelContext(),
+                      CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+                      sizeof(float) * M * N, (void*) C);
+
+  ocl_kernel.set_kernel_args(0, buffer_A, buffer_B, buffer_C, M, N, K, alpha,
+                             beta);
+  decltype(auto) queue = ocl_kernel.GetCommandQueue();
+  decltype(auto) kernel = ocl_kernel.GetKernel();
+
+  cl::Event event;
+  ocl_kernel.GetCommandQueue()->enqueueNDRangeKernel(kernel, cl::NullRange,
+                                                     global_work_size,
+                                                     local_work_size, nullptr,
+                                                     &event);
+  queue->enqueueReadBuffer(buffer_C, CL_TRUE, 0, sizeof(float) * M * N, C);
+  ocl_kernel.ProflingKernel(event);
+}
+

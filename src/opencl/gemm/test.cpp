@@ -235,3 +235,25 @@ TEST(GEMM, gemm_v9) {
     ASSERT_NEAR(C_ocl[i], C_cpu[i], kEpsilon);
   }
 }
+
+TEST(GEMM, gemm_v10) {
+  constexpr int M = 4096;
+  constexpr int N = 1024; 
+  constexpr int K = 2048;
+
+  std::vector<float> A(M * K, 0.0f);
+  std::vector<float> B(K * N, 0.0f);
+  std::vector<float> C_cpu(M * N, 0.0f);
+  std::vector<float> C_ocl(M * N, 0.0f);
+
+  set_random_values(A, 1.0f, 1.0f);
+  set_random_values(B, 1.0f, 1.0f);
+
+  gemm_ref(A.data(), B.data(), C_cpu.data(), M, N, K, 1.0, 0.0f);
+  gemm_v10(A.data(), B.data(), C_ocl.data(), M, N, K, 1.0, 0.0f);
+
+  constexpr float kEpsilon = 1e-1f;
+  for (int i = 0; i < M * N; ++i) {
+    ASSERT_NEAR(C_ocl[i], C_cpu[i], kEpsilon);
+  }
+}
