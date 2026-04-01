@@ -15,5 +15,4 @@ Practice how to write high performance kernels
 # OPENCL
 
 - [x] sgemm
-- [ ] gemv
 - [x] reduce
