@@ -92,8 +92,8 @@ void valid_conv2d_v2(const float* input, const float* filter, float* output,
   const int kOutputRows = input_rows - kernel_rows + 1;
   const int kOutputCols = input_cols - kernel_cols + 1;
 
-  constexpr int kLocalSizeX = 16;
-  constexpr int kLocalSizeY = 16;
+  const int kLocalSizeX = 16;
+  const int kLocalSizeY = 16;
 
   const int kSharedInputSizeX = kLocalSizeX + kernel_cols - 1;
   const int kSharedInputSizeY = kLocalSizeY + kernel_rows - 1;
@@ -116,14 +116,17 @@ void valid_conv2d_v2(const float* input, const float* filter, float* output,
                            CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
                            sizeof(float) * kOutputRows * kOutputCols,
                            (void*) output);
-  cl::Buffer buffer_shared_input(ocl_kernel.GetKernelContext(),
-                                 CL_MEM_READ_WRITE,
-                                 sizeof(float) * kSharedInputSizeX *
-                                     kSharedInputSizeY);
-
-  ocl_kernel.set_kernel_args(0, buffer_input, buffer_filter, buffer_output,
-                             buffer_shared_input, input_rows, input_cols,
-                             kernel_rows, kernel_cols, kOutputRows, kOutputCols);
+  ocl_kernel.GetKernel().setArg(0, buffer_input);
+  ocl_kernel.GetKernel().setArg(1, buffer_filter);
+  ocl_kernel.GetKernel().setArg(2, buffer_output);
+  ocl_kernel.GetKernel().setArg(
+      3, sizeof(float) * kSharedInputSizeX * kSharedInputSizeY, nullptr);
+  ocl_kernel.GetKernel().setArg(4, input_rows);
+  ocl_kernel.GetKernel().setArg(5, input_cols);
+  ocl_kernel.GetKernel().setArg(6, kernel_rows);
+  ocl_kernel.GetKernel().setArg(7, kernel_cols);
+  ocl_kernel.GetKernel().setArg(8, kOutputRows);
+  ocl_kernel.GetKernel().setArg(9, kOutputCols);
   decltype(auto) queue = ocl_kernel.GetCommandQueue();
   decltype(auto) kernel = ocl_kernel.GetKernel();
 

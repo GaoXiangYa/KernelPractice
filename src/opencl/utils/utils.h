@@ -115,6 +115,8 @@ public:
   const std::unique_ptr<cl::CommandQueue>& GetCommandQueue() const { return queue_; }
 
   const cl::Kernel& GetKernel() const { return kernel_; }
+
+  cl::Kernel& GetKernel() { return kernel_; }
   
   void ProflingKernel(const cl::Event& event) {
     print_kernel_profiling_info(kernel_name_.c_str(), event);
