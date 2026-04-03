@@ -22,15 +22,15 @@ __kernel void valid_conv2d_v2_kernel(__global const float* restrict input,
   const int global_x_base = local_size_x * get_group_id(0);
 
   // load input in shared memory
-  for (int i = tid; i < shared_input_size; i += num_threads) {
-    const int shmem_y = i / shared_input_size_x;
-    const int shmem_x = i % shared_input_size_x;
+  for (int y = local_y; y < shared_input_size_y; y += local_size_y) {
+    for (int x = local_x; x < shared_input_size_x; x += local_size_x) {
+      int global_y = global_y_base + y;
+      int global_x = global_x_base + x;
 
-    const int global_input_y = global_y_base + shmem_y;
-    const int global_input_x = global_x_base + shmem_x;
-
-    if (global_input_y < input_rows && global_input_x < input_cols) {
-      shmem_input[i] = input[global_input_y * input_cols + global_input_x];
+      if (global_y < input_rows && global_x < input_cols) {
+        shmem_input[y * (shared_input_size_x + 1)+ x] =
+            input[global_y * input_cols + global_x];
+      }
     }
   }
   // sync
@@ -44,7 +44,7 @@ __kernel void valid_conv2d_v2_kernel(__global const float* restrict input,
       int input_x = local_x + c;
 
       if (input_y < shared_input_size_y && input_x < shared_input_size_x) {
-        float val = shmem_input[input_y * shared_input_size_x + input_x];
+        float val = shmem_input[input_y * (shared_input_size_x + 1) + input_x];
         float w = filter[r * filter_cols + c];
         sum += val * w;
       }
