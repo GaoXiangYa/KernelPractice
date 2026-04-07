@@ -150,13 +150,16 @@ void valid_conv2d_v3(const float* input, const float* filter, float* output,
   const int kOutputCols = input_cols - kernel_cols + 1;
   const int kRegX = 2;
   const int kRegY = 2;
-  const int kLocalSizeX = 16;
-  const int kLocalSizeY = 16;
+  const int kLocalSizeX = std::min(16, kOutputCols);
+  const int kLocalSizeY = std::min(16, kOutputRows);
+  const int kGlobalSizeX = (kOutputCols + (kLocalSizeX * kRegX) - 1) /
+                           (kLocalSizeX * kRegX) * kLocalSizeX;
+  const int kGlobalSizeY = (kOutputRows + (kLocalSizeY * kRegY) - 1) /
+                           (kLocalSizeY * kRegY) * kLocalSizeY;
 
-  cl::NDRange global_work_size((kOutputCols - (kLocalSizeX * kRegX) + 1) /
-                                   (kLocalSizeX * kRegX) * kLocalSizeX,
-                               (kOutputRows - (kLocalSizeY * kRegX) + 1) /
-                                   (kLocalSizeY * kRegY) * kLocalSizeY);
+  // std::cout << std::format("global [{}, {}], local [{}, {}]\n", kGlobalSizeY,
+  //                          kGlobalSizeX, kLocalSizeY, kLocalSizeX);
+  cl::NDRange global_work_size(kGlobalSizeX, kGlobalSizeY);
   cl::NDRange local_work_size(kLocalSizeX, kLocalSizeY);
 
   cl::Buffer buffer_input(ocl_kernel.GetKernelContext(),
@@ -174,7 +177,7 @@ void valid_conv2d_v3(const float* input, const float* filter, float* output,
 
   ocl_kernel.set_kernel_args(0, buffer_input, buffer_filter, buffer_output,
                              input_rows, input_cols, kernel_rows, kernel_cols,
-                             kOutputCols, kOutputRows);
+                             kOutputRows, kOutputCols);
   decltype(auto) queue = ocl_kernel.GetCommandQueue();
   decltype(auto) kernel = ocl_kernel.GetKernel();
 
