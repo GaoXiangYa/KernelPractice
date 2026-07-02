@@ -57,6 +57,11 @@ public:
                 const cl::NDRange& local,
                 const std::string& label);
 
+    // Enqueue without printing (for benchmarks)
+    void launch_silent(const cl::Kernel& kernel,
+                       const cl::NDRange& global,
+                       const cl::NDRange& local);
+
     // Blocking read from a device buffer back to host.
     void read_buffer(const cl::Buffer& buf, size_t bytes, void* dst);
 

@@ -53,6 +53,14 @@ void DeviceManager::launch(const cl::Kernel& kernel,
                              label, ms);
 }
 
+void DeviceManager::launch_silent(const cl::Kernel& kernel,
+                                  const cl::NDRange& global,
+                                  const cl::NDRange& local) {
+    cl::Event event;
+    queue_.enqueueNDRangeKernel(kernel, cl::NullRange, global, local,
+                                nullptr, &event);
+}
+
 void DeviceManager::read_buffer(const cl::Buffer& buf, size_t bytes,
                                 void* dst) {
     queue_.enqueueReadBuffer(buf, CL_TRUE, 0, bytes, dst);
