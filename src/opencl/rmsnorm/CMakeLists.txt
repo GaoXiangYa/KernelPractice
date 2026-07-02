@@ -1,7 +1,7 @@
 list(APPEND CMAKE_PREFIX_PATH /opt/libtorch)
 find_package(Torch REQUIRED)
 
-add_ocl_kernel(rmsnorm ${TORCH_LIBRARIES})
+add_ocl_kernel(rmsnorm torch_cpu c10)
 target_include_directories(rmsnorm_test PRIVATE ${TORCH_INCLUDE_DIRS})
 
 # benchmark
