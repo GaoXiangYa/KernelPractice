@@ -20,8 +20,9 @@ struct Variant {
 };
 
 static const Variant kVariants[] = {
-    {"v0", launch_rmsnorm_v0, "rmsnorm_v0.cl", "rms_norm_fused_v0", 64, 6},
+    {"v0", launch_rmsnorm_v0, "rmsnorm_v0.cl", "rms_norm_fused_v0", 64, 4},
     {"v1", launch_rmsnorm_v1, "rmsnorm_v1.cl", "rms_norm_fused_v1",  64, 5},
+    {"v2", launch_rmsnorm_v2, "rmsnorm_v2.cl", "rms_norm_fused_v2",  256, 6},
 };
 
 static void bench_one_raw(const Variant& v, const char* label,
@@ -49,8 +50,9 @@ static void bench_one_raw(const Variant& v, const char* label,
     kernel.setArg(2, d_o);
     kernel.setArg(3, D);
     kernel.setArg(4, epsilon);
-    if (v.args >= 6)
-        kernel.setArg(5, cl::Local(v.local_size * sizeof(float)));
+    if (v.args >= 6) {
+        kernel.setArg(5, cl::Local(8 * sizeof(float)));
+    }
 
     cl::NDRange global(v.local_size * N);
     cl::NDRange local(v.local_size);
