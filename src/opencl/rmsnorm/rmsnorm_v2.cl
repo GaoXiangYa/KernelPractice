@@ -8,7 +8,6 @@ __kernel void rms_norm_fused_v2(
     const int D,
     const float epsilon,
     __local float* tmp_sum) {
-    printf("v2\n");
     const int lsz = get_local_size(0);
     const int lid = get_local_id(0);
     const int row = get_group_id(0);      // one work-group per row of N
@@ -29,14 +28,14 @@ __kernel void rms_norm_fused_v2(
     }
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    if (lid == 0) {
+    // reduce add tmp_sum[0...num_sg - 1] in sub_group0
+    if (sub_group_id == 0) {
         const int num_sg = get_num_sub_groups();
-        printf("num_sg = %d\n", num_sg);
-        float sum = 0.0f;
-        for (int i = 0; i < num_sg; ++i) {
-            sum += tmp_sum[i];
+        float x = (sub_group_lid < num_sg) ? tmp_sum[sub_group_lid] : 0.0f;
+        x = sub_group_reduce_add(x);
+        if (sub_group_lid == 0) {
+            tmp_sum[0] = x;
         }
-        tmp_sum[0] = sum;
     }
 
     barrier(CLK_LOCAL_MEM_FENCE);

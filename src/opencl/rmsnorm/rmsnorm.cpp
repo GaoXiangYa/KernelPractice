@@ -91,19 +91,16 @@ void launch_rmsnorm_v2(const float* input, const float* weight, float* output,
   const int tmp_size =
       (max_work_group_size + max_sub_group_size - 1) / max_sub_group_size;
 
-  std::cout << max_sub_group_size << " " << max_work_group_size << " "
-            << tmp_size << std::endl;
   auto d_input = dm.create_ro_buffer(sizeof(float) * elems, input);
   auto d_weight = dm.create_ro_buffer(sizeof(float) * D, weight);
   auto d_output = dm.create_rw_buffer(sizeof(float) * elems, output);
-  auto d_tmp = dm.create_rw_buffer(sizeof(float) * tmp_size, nullptr);
 
   kernel.setArg(0, d_input);
   kernel.setArg(1, d_weight);
   kernel.setArg(2, d_output);
   kernel.setArg(3, D);
   kernel.setArg(4, epsilon);
-  kernel.setArg(5, d_tmp);
+  kernel.setArg(5, cl::Local(sizeof(float) * tmp_size));
 
   const int lsz = 256;
   cl::NDRange global(lsz * N);
