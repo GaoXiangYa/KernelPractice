@@ -5,7 +5,7 @@
 // ---- Fused RMS Norm: reduce sum(x²) + normalize in one kernel ----
 __kernel void rms_norm_fused_v3(
     __global const float4* input,     // [N, D]
-    __global const float4* weight,    // [D]
+    __constant const float4* weight,    // [D]
     __global       float4* output,    // [N, D]
     const int N,
     const int D,
