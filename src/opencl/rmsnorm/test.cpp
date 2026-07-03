@@ -40,9 +40,10 @@ struct Variant {
 };
 
 static const Variant kVariants[] = {
-    // {"v0", launch_rmsnorm_v0},
-    // {"v1", launch_rmsnorm_v1},
-    {"v2", launch_rmsnorm_v2},   // future
+    {"v0", launch_rmsnorm_v0},
+    {"v1", launch_rmsnorm_v1},
+    {"v2", launch_rmsnorm_v2},
+    {"v3", launch_rmsnorm_v3},
 };
 
 // ===========================================================================

@@ -116,3 +116,45 @@ void launch_rmsnorm_v2(const std::vector<float>& input,
                        float epsilon) {
   launch_rmsnorm_v2(input.data(), weight.data(), output.data(), N, D, epsilon);
 }
+
+void launch_rmsnorm_v3(const float* input, const float* weight, float* output,
+                       int N, int D, float epsilon) {
+  auto& dm = DeviceManager::get();
+  auto kernel = dm.build_kernel("../src/opencl/rmsnorm/rmsnorm_v3.cl",
+                                "rms_norm_fused_v3");
+
+  size_t elems = (size_t) N * D;
+  const int max_sub_group_size =
+      kernel.getWorkGroupInfo<CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE>(
+          cl::Device::getDefault());
+  const int max_work_group_size =
+      cl::Device::getDefault().getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>();
+  const int tmp_size =
+      (max_work_group_size + max_sub_group_size - 1) / max_sub_group_size;
+
+  auto d_input = dm.create_ro_buffer(sizeof(float) * elems, input);
+  auto d_weight = dm.create_ro_buffer(sizeof(float) * D, weight);
+  auto d_output = dm.create_rw_buffer(sizeof(float) * elems, output);
+
+  kernel.setArg(0, d_input);
+  kernel.setArg(1, d_weight);
+  kernel.setArg(2, d_output);
+  kernel.setArg(3, N);
+  kernel.setArg(4, D);
+  kernel.setArg(5, epsilon);
+  kernel.setArg(6, cl::Local(sizeof(float) * tmp_size));
+
+  const int lsz = 256;
+  cl::NDRange global(lsz * N);
+  cl::NDRange local(lsz);
+
+  dm.launch(kernel, global, local, "rms_norm_fused_v3");
+  dm.read_buffer(d_output, sizeof(float) * elems, output);
+}
+
+void launch_rmsnorm_v3(const std::vector<float>& input,
+                       const std::vector<float>& weight,
+                       std::vector<float>& output, int N, int D,
+                       float epsilon) {
+  launch_rmsnorm_v3(input.data(), weight.data(), output.data(), N, D, epsilon);
+}
