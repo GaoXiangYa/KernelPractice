@@ -5,3 +5,4 @@
 #define GEMM_C(i, j) C[(i) * ldc + (j)]
 
 void gemm_v0(const float* a, const float* b, float* c, int M, int N, int K);
+void gemm_v1(const float* a, const float* b, float* c, int M, int N, int K);

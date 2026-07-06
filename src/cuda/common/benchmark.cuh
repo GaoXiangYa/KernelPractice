@@ -1,5 +1,4 @@
 #include <cuda_runtime.h>
-#include <functional>
 #include <iostream>
 
 template <typename KernelFunc, typename... Args>

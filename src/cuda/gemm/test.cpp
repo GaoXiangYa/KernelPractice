@@ -49,6 +49,41 @@ TEST(GemmTest, v0_skinny) {
   test_gemm_v0(1024, 16, 256);
 }
 
+void test_gemm_v1(int M, int N, int K) {
+  std::vector<float> a(M * K);
+  std::vector<float> b(K * N);
+  std::vector<float> c_ref(M * N, 0.0f);
+  std::vector<float> c_cuda(M * N, 0.0f);
+
+  for (auto& v : a) v = float(rand()) / RAND_MAX * 2.0f - 1.0f;
+  for (auto& v : b) v = float(rand()) / RAND_MAX * 2.0f - 1.0f;
+
+  ref_gemm_torch(a, b, c_ref, M, N, K);
+  gemm_v1(a.data(), b.data(), c_cuda.data(), M, N, K);
+
+  constexpr float kEpsilon = 1e-3f;
+  for (int i = 0; i < M * N; ++i) {
+    ASSERT_NEAR(c_ref[i], c_cuda[i], kEpsilon)
+        << "Mismatch at index " << i;
+  }
+}
+
+TEST(GemmTest, v1_small) {
+  test_gemm_v1(64, 64, 64);
+}
+
+TEST(GemmTest, v1_medium) {
+  test_gemm_v1(256, 256, 256);
+}
+
+TEST(GemmTest, v1_large) {
+  test_gemm_v1(1024, 256, 128);
+}
+
+TEST(GemmTest, v1_skinny) {
+  test_gemm_v1(1024, 16, 256);
+}
+
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

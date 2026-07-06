@@ -1,4 +1,4 @@
-add_library(gemm_cuda STATIC ${CMAKE_CURRENT_SOURCE_DIR}/gemm_v0.cu)
+add_library(gemm_cuda STATIC ${CMAKE_CURRENT_SOURCE_DIR}/gemm.cu)
 target_include_directories(gemm_cuda PUBLIC ${CUDA_INCLUDE_DIRS})
 
 if(USE_TORCH)
