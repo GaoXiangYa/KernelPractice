@@ -57,6 +57,11 @@ public:
                 const cl::NDRange& local,
                 const std::string& label);
 
+    double launch_profiled(const cl::Kernel& kernel,
+                         const cl::NDRange& global,
+                         const cl::NDRange& local,
+                         const std::string& label);
+
     // Enqueue without printing (for benchmarks)
     void launch_silent(const cl::Kernel& kernel,
                        const cl::NDRange& global,
