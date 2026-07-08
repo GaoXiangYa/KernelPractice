@@ -1,86 +1,90 @@
-#define VEC_WIDTH 4
-#define TILE_M 32
-#define TILE_N 32
-#define TILE_K 32
-#define COARSE_FACTOR 4
+#define MICRO_SIZE 8
+#define BK 16
+#define BM (BK * MICRO_SIZE)
+#define BN (BK * MICRO_SIZE)
+#define BK_PAD (BK + 1)
 
-// A[M x K], B[K x N], C[M x N]
-// vectorization + shared memory + thread coarse
-__kernel void gemm_v5_kernel(__global const float4* A, __global const float4* B,
-                             __global float4* C, const int M, const int N,
+// C[M, N] = A[M, K] * B[K, N], 8x8x8 tiling
+// Each work-item computes an 8x8 micro-tile and uses shared memory to cache
+// one K-tile of A and one K-tile of B.
+__kernel void gemm_v5_kernel(__global const float* A, __global const float* B,
+                             __global float* C, const int M, const int N,
                              const int K, float alpha, float beta) {
-  __local float4 shmem_a[TILE_M * (TILE_K / VEC_WIDTH + 1)];
-  __local float4 shmem_b[COARSE_FACTOR][TILE_K * (TILE_N / VEC_WIDTH + 1)];
+  const int lda = K;
+  const int ldb = N;
+  const int ldc = N;
 
-  const int local_row = get_local_id(1);
-  const int local_col = get_local_id(0);
+  const int local_wg_x = get_local_size(0);
+  const int local_wg_y = get_local_size(1);
+  const int group_x = get_group_id(0);
+  const int group_y = get_group_id(1);
+  const int local_x = get_local_id(0);
+  const int local_y = get_local_id(1);
 
-  const int global_row = TILE_M * get_group_id(1) + local_row;
-  const int global_col_base =
-      TILE_N / VEC_WIDTH * get_group_id(0) * COARSE_FACTOR + local_col;
+  const int tile_col_base = group_x * local_wg_x * MICRO_SIZE;
+  const int tile_row_base = group_y * local_wg_y * MICRO_SIZE;
+  const int thread_col_base = local_x * MICRO_SIZE;
+  const int thread_row_base = local_y * MICRO_SIZE;
 
-  float4 sum[COARSE_FACTOR];
-#pragma unroll
-  for (int c = 0; c < COARSE_FACTOR; ++c) {
-    sum[c] = (float4) (0.0f);
-  }
+  __local float sh_a[BM * BK_PAD];
+  __local float sh_b[BK_PAD * BN];
 
-  const int num_tiles = (K + TILE_K - 1) / TILE_K;
-  for (int ph = 0; ph < num_tiles; ++ph) {
-    const int tiled_col = ph * (TILE_K / VEC_WIDTH) + local_col;
-    // load matrix A
-    if (global_row < M && local_col < (K / VEC_WIDTH)) {
-      shmem_a[local_row * (TILE_K / VEC_WIDTH + 1) + local_col] =
-          A[global_row * (K / VEC_WIDTH) + tiled_col];
-    } else {
-      shmem_a[local_row * (TILE_K / VEC_WIDTH + 1) + local_col] = (float4) (0.0f);
-    }
+  float accum[MICRO_SIZE * MICRO_SIZE] = {0.0f};
 
-    // load matrix B
-    const int tiled_row = ph * TILE_K + local_row;
-#pragma unroll
-    for (int c = 0; c < COARSE_FACTOR; ++c) {
-      const int global_col = global_col_base + c * TILE_N / VEC_WIDTH;
-      if (tiled_row < K && global_col < (N / VEC_WIDTH)) {
-        shmem_b[c][local_row * (TILE_N / VEC_WIDTH + 1) + local_col] =
-            B[tiled_row * (N / VEC_WIDTH) + global_col];
+  for (int k_base = 0; k_base < K; k_base += BK) {
+    #pragma unroll
+    for (int row_offset = 0; row_offset < MICRO_SIZE; ++row_offset) {
+      const int shared_row = thread_row_base + row_offset;
+      const int global_row = tile_row_base + shared_row;
+      const int global_col = k_base + local_x;
+      if (global_row < M && global_col < K) {
+        sh_a[shared_row * BK_PAD + local_x] = A[global_row * lda + global_col];
       } else {
-        shmem_b[c][local_row * (TILE_N / VEC_WIDTH + 1) + local_col] =
-            (float4) (0.0f);
+        sh_a[shared_row * BK_PAD + local_x] = 0.0f;
       }
     }
 
-    // sync
+    #pragma unroll
+    for (int col_offset = 0; col_offset < MICRO_SIZE; ++col_offset) {
+      const int shared_col = thread_col_base + col_offset;
+      const int global_col = tile_col_base + shared_col;
+      const int global_row = k_base + local_y;
+      if (global_row < K && global_col < N) {
+        sh_b[local_y * (BN + 1) + shared_col] = B[global_row * ldb + global_col];
+      } else {
+        sh_b[local_y * (BN + 1) + shared_col] = 0.0f;
+      }
+    }
+
     barrier(CLK_LOCAL_MEM_FENCE);
-    float4 a_vec, b_vec;
-#pragma unroll
-    for (int c = 0; c < COARSE_FACTOR; ++c) {
-      for (int k = 0; k < TILE_K; k += 4) {
-        float4 a_vec = shmem_a[local_row * (TILE_K / VEC_WIDTH + 1) + k / VEC_WIDTH];
 
-        float4 b0 = shmem_b[c][(k + 0) * (TILE_N / VEC_WIDTH + 1) + local_col];
-        float4 b1 = shmem_b[c][(k + 1) * (TILE_N / VEC_WIDTH + 1) + local_col];
-        float4 b2 = shmem_b[c][(k + 2) * (TILE_N / VEC_WIDTH + 1) + local_col];
-        float4 b3 = shmem_b[c][(k + 3) * (TILE_N / VEC_WIDTH + 1) + local_col];
-
-        sum[c] += a_vec.x * b0;
-        sum[c] += a_vec.y * b1;
-        sum[c] += a_vec.z * b2;
-        sum[c] += a_vec.w * b3;
+    for (int ik = 0; ik < BK; ++ik) {
+      #pragma unroll
+      for (int row_offset = 0; row_offset < MICRO_SIZE; ++row_offset) {
+        const float a_value = sh_a[(thread_row_base + row_offset) * BK_PAD + ik];
+        #pragma unroll
+        for (int col_offset = 0; col_offset < MICRO_SIZE; ++col_offset) {
+          const int shared_col = thread_col_base + col_offset;
+          accum[row_offset * MICRO_SIZE + col_offset] +=
+              a_value * sh_b[ik * (BN + 1) + shared_col];
+        }
       }
     }
-    // sync
+
     barrier(CLK_LOCAL_MEM_FENCE);
   }
 
-#pragma unroll
-  for (int c = 0; c < COARSE_FACTOR; ++c) {
-    int global_col = global_col_base + c * TILE_N / VEC_WIDTH;
-    if (global_row < M && global_col < N / VEC_WIDTH) {
-      int idx =
-          global_row * (N / VEC_WIDTH) + global_col;
-      float4 c_old = C[idx];
-      C[idx] = alpha * sum[c] + beta * c_old;
+  #pragma unroll
+  for (int row_offset = 0; row_offset < MICRO_SIZE; ++row_offset) {
+    const int global_row = tile_row_base + thread_row_base + row_offset;
+    #pragma unroll
+    for (int col_offset = 0; col_offset < MICRO_SIZE; ++col_offset) {
+      const int global_col = tile_col_base + thread_col_base + col_offset;
+      if (global_row < M && global_col < N) {
+        C[global_row * ldc + global_col] =
+            alpha * accum[row_offset * MICRO_SIZE + col_offset] +
+            beta * C[global_row * ldc + global_col];
+      }
     }
   }
 }

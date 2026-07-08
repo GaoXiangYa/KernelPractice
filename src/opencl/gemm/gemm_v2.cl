@@ -1,66 +1,61 @@
-#define TILE_K 16
-#define TILE_VEC 4
+#define GEMM_A(i, j) A[(i) * lda + (j)]
+#define GEMM_B(i, j) B[(i) * ldb + (j)]
+#define GEMM_C(i, j) C[(i) * ldc + (j)]
 
-static inline float mul_vec(__local float* vec_a, __local float* vec_b,
-                            const int local_row, const int local_col) {
-  float sum = 0;
-// #pragma unroll
-  for (int t = 0; t < TILE_K; t += TILE_VEC) {
-    float4 val_a = vload4(0, &vec_a[local_row * TILE_K + t]);
-    float4 val_b = {vec_b[t * TILE_K + local_col],
-                    vec_b[(t + 1) * TILE_K + local_col],
-                    vec_b[(t + 2) * TILE_K + local_col],
-                    vec_b[(t + 3) * TILE_K + local_col]};
-    sum += (val_a.x * val_b.x + val_a.y * val_b.y + val_a.z * val_b.z +
-            val_a.w * val_b.w);
-  }
-  return sum;
-}
+#define BM 16
+#define BN 16
+#define BK 16
+#define BK_PAD (BK + 1)
 
-// shared memory
+#define sa(i, j) sa[(i) * BK_PAD + j]
+#define sb(i, j) sb[(i) * BN + j]
+
+// C[M, N] = A[M, K] * B[K, N], 16x16x16 tiling
+// 1. packend matrix A , matrix B into a 16x16 block
+// 2. reduce 2-way bank conflicts
+//  subgroup size = 64 has 2 way bank conflicts
+//  ly=0, lx=0..15 → addr  0..15  (banks  0..15)
+//  ly=1, lx=0..15 → addr 16..31  (banks 16..31)
+//  ly=2, lx=0..15 → addr 32..47  (banks  0..15)  ← ly=0 same bank，different address！
+//  ly=3, lx=0..15 → addr 48..63  (banks 16..31)  ← ly=1 same bank，different address！
 __kernel void gemm_v2_kernel(__global const float* A, __global const float* B,
                              __global float* C, const int M, const int N,
                              const int K, float alpha, float beta) {
-  __local float shared_A[TILE_K * TILE_K];
-  __local float shared_B[TILE_K * TILE_K];
+  const int lda = K, ldb = N, ldc = N;
+  const int lx = get_local_id(0);
+  const int ly = get_local_id(1);
+  const int gx = get_group_id(0) * get_local_size(0) + lx;
+  const int gy = get_group_id(1) * get_local_size(1) + ly;
 
-  int local_col = get_local_id(0);
-  int local_row = get_local_id(1);
+  __local float sa[BM * BK_PAD];
+  __local float sb[BK_PAD * BN];
 
-  int global_col = TILE_K * get_group_id(0) + local_col;
-  int global_row = TILE_K * get_group_id(1) + local_row;
-
-  // Load tiles into shared memory
   float sum = 0.0f;
-  float num_tile = (K + TILE_K - 1) / TILE_K;
-  for (int ph = 0; ph < num_tile; ++ph) {
-    int base = ph * TILE_K;
-    int a_col = base + local_col;
+  for (int k = 0; k < K; k += BK) {
+    const int base = k;
 
-    if (global_row < M && a_col < K) {
-      shared_A[local_row * TILE_K + local_col] = A[global_row * K + a_col];
+    const int ga_x = base +lx;
+    if (gy < M && ga_x < K) {
+      sa(ly, lx) = GEMM_A(gy, ga_x);
     } else {
-      shared_A[local_row * TILE_K + local_col] = 0.0f;
+      sa(ly, lx) = 0.0f;
     }
-
-    int b_row = base + local_row;
-    if (b_row < K && global_col < N) {
-      shared_B[local_row * TILE_K + local_col] = B[b_row * N + global_col];
+    const int gb_y = base +ly;
+    if (gb_y < K && gx < N) {
+      sb(ly, lx) = GEMM_B(gb_y, gx);
     } else {
-      shared_B[local_row * TILE_K + local_col] = 0.0f;
+      sb(ly, lx) = 0.0f;
     }
-
-    // sync
     barrier(CLK_LOCAL_MEM_FENCE);
 
-    sum += mul_vec(shared_A, shared_B, local_row, local_col);
-    // sync
+    for (int ik = 0; ik < BK; ++ ik) {
+      sum += sa(ly, ik) * sb(ik, lx);
+    }
     barrier(CLK_LOCAL_MEM_FENCE);
   }
 
-  if (global_row < M && global_col < N) {
-    // printf("sum = %f\n", sum);
-    C[global_row * N + global_col] =
-        alpha * sum + beta * C[global_row * N + global_col];
+
+  if (gy < M && gx < N) {
+    GEMM_C(gy, gx) = alpha * sum + beta * GEMM_C(gy, gx);
   }
 }

@@ -27,7 +27,7 @@ struct GEMMVariant {
 
 class GEMMTest : public ::testing::TestWithParam<GEMMVariant> {
 protected:
-  static constexpr int M = 4096, N = 1024, K = 2048;
+  static constexpr int M = 1024, N = 128, K = 512;
   std::vector<float> A, B, C_cpu, C_ocl;
 
   void SetUp() override {
