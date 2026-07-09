@@ -498,16 +498,20 @@ double gemm_v6_benchmark(const float* A, const float* B, float* C, int M, int N,
 
 void gemm_v7(const float* A, const float* B, float* C, int M, int N, int K,
              float alpha, float beta) {
-  constexpr int kRegM = 4;
-  constexpr int kRegN = 4;
-  constexpr int kTileM = 16;
-  constexpr int kTileN = 16;
+  const int kGlobalSizeM = M;
+  const int kGlobalSizeN = N;
+  constexpr int kMicroTileSize = 4;
+  constexpr int kThreadXCount = 16;
+  constexpr int kThreadYCount = 16;
 
-  cl::NDRange local_work_size(kTileN, kTileM);
-  cl::NDRange global_work_size((N + kTileN * kRegN - 1) / (kTileN * kRegN) *
-                                   kTileN,
-                               (M + kTileM * kRegM - 1) / (kTileM * kRegM) *
-                                   kTileM);
+  int num_groups_x = (N + (kThreadXCount * kMicroTileSize - 1)) /
+                     (kThreadXCount * kMicroTileSize);
+  int num_groups_y = (M + kThreadYCount * kMicroTileSize - 1) /
+                     (kThreadYCount * kMicroTileSize);
+
+  cl::NDRange global_work_size(num_groups_x * kThreadXCount,
+                               num_groups_y * kThreadYCount);
+  cl::NDRange local_work_size(kThreadXCount, kThreadYCount);
 
   auto& dm = DeviceManager::get();
   auto kernel =
@@ -528,6 +532,43 @@ void gemm_v7(const float* A, const float* B, float* C, int M, int N, int K,
 
   dm.launch(kernel, global_work_size, local_work_size, "gemm_v7_kernel");
   dm.read_buffer(bc, sizeof(float) * M * N, C);
+}
+
+double gemm_v7_benchmark(const float* A, const float* B, float* C, int M, int N,
+                         int K, float alpha, float beta) {
+  const int kGlobalSizeM = M;
+  const int kGlobalSizeN = N;
+  constexpr int kMicroTileSize = 4;
+  constexpr int kThreadXCount = 16;
+  constexpr int kThreadYCount = 16;
+
+  int num_groups_x = (N + (kThreadXCount * kMicroTileSize - 1)) /
+                     (kThreadXCount * kMicroTileSize);
+  int num_groups_y = (M + kThreadYCount * kMicroTileSize - 1) /
+                     (kThreadYCount * kMicroTileSize);
+
+  cl::NDRange global_work_size(num_groups_x * kThreadXCount,
+                               num_groups_y * kThreadYCount);
+  cl::NDRange local_work_size(kThreadXCount, kThreadYCount);
+
+  auto& dm = DeviceManager::get();
+  auto kernel =
+      dm.build_kernel("../src/opencl/gemm/gemm_v7.cl", "gemm_v7_kernel");
+  auto ba = dm.create_ro_buffer(sizeof(float) * M * K, A);
+  auto bb = dm.create_ro_buffer(sizeof(float) * K * N, B);
+  auto bc = dm.create_rw_buffer(sizeof(float) * M * N, C);
+
+  kernel.setArg(0, ba);
+  kernel.setArg(1, bb);
+  kernel.setArg(2, bc);
+  kernel.setArg(3, M);
+  kernel.setArg(4, N);
+  kernel.setArg(5, K);
+  kernel.setArg(6, alpha);
+  kernel.setArg(7, beta);
+
+  return dm.launch_profiled(kernel, global_work_size, local_work_size,
+                            "gemm_v7_kernel");
 }
 
 void gemm_v8(const float* A, const float* B, float* C, int M, int N, int K,
