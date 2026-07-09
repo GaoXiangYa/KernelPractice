@@ -17,15 +17,14 @@ struct Variant {
   GemmFunc func;
 };
 
-static const Variant kVariants[] = {{"v0", gemm_v0_benchmark},
-                                    {"v1", gemm_v1_benchmark},
-                                    {"v2", gemm_v2_benchmark},
-                                    {"v3", gemm_v3_benchmark},
-                                    {"v4", gemm_v4_benchmark},
-                                    {"v5", gemm_v5_benchmark},
-                                    {"v6", gemm_v6_benchmark},
-                                    // {"v9", gemm_v9_benchmark},
-                                  };
+static const Variant kVariants[] = {
+    {"v0", gemm_v0_benchmark}, {"v1", gemm_v1_benchmark},
+    {"v2", gemm_v2_benchmark}, {"v3", gemm_v3_benchmark},
+    {"v4", gemm_v4_benchmark}, {"v5", gemm_v5_benchmark},
+    {"v6", gemm_v6_benchmark}, {"v7", gemm_v7_benchmark},
+    {"v8", gemm_v8_benchmark},
+    // {"v9", gemm_v9_benchmark},
+};
 
 // ===========================================================================
 // Benchmark helper
@@ -83,9 +82,9 @@ int main() {
     const char* tag;
   };
   Problem probs[] = {
-      {128, 128, 128, "tiny  "},   {256, 256, 256, "small "},
-      {512, 512, 512, "medium"},   {1024, 1024, 1024, "large "},
-      {1024, 512, 4096, "rect  "},
+      {128, 128, 128, "tiny  "},    {256, 256, 256, "small "},
+      {512, 512, 512, "medium"},    {1024, 1024, 1024, "large "},
+      {4096, 4096, 4096, "rect  "},
   };
 
   for (auto& p : probs) {

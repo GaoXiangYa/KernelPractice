@@ -44,6 +44,8 @@ double gemm_v7_benchmark(const float* A, const float* B, float* C, int M, int N,
 
 void gemm_v8(const float* A, const float* B, float* C, int M, int N, int K,
              float alpha = 1.0f, float beta = 0.0f);
+double gemm_v8_benchmark(const float* A, const float* B, float* C, int M, int N,
+                         int K, float alpha = 1.0f, float beta = 0.0f);
 
 void gemm_v9(const float* A, const float* B, float* C, int M, int N, int K,
              float alpha = 1.0f, float beta = 0.0f);
