@@ -15,6 +15,12 @@
 #define sb(i, j) sb[(i) * (BN_PAD) + j]
 #define sum(i, j) sum[i * 4 + j]
 
+
+#define vload(v1,addr)\
+    v1 = *((float4 *)(addr));
+#define vstore(addr,v1)\
+    *((float4 *)(addr)) = v1;
+
 #define vscal(v1, v2, s3)\
     v1.x+=v2.x*s3;\
     v1.y+=v2.y*s3;\
@@ -74,7 +80,6 @@ __kernel void gemm_v6_kernel(__global const float* A, __global const float* B,
   float4 vec_b;
   float4 vec_a;
 
-  float4 vec_c[MICRO_SIZE];
   float4 reg_c[MICRO_SIZE];
   reg_c[0] = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
   reg_c[0] = (float4)(0.0f, 0.0f, 0.0f, 0.0f);
@@ -95,14 +100,14 @@ __kernel void gemm_v6_kernel(__global const float* A, __global const float* B,
     *(float4*)&sa(lx_base, ly0) = vec_a;
  
     int gb_y = base + ly_base;
-    vec_b = vload4(0, &GEMM_B(gb_y, gx0));
-    vstore4(vec_b, 0, &sb(ly_base, lx0));
+    vload(vec_b, &GEMM_B(gb_y, gx0));
+    vstore(&sb(ly_base, lx0), vec_b);
 
     barrier(CLK_LOCAL_MEM_FENCE);
 
     for (int ik = 0; ik < BK; ++ ik) {
-      vec_b = vload4(0, &sb(ik, lx0));
-      vec_a = vload4(0, &sa(ik, ly0));
+      vload(vec_b, &sb(ik, lx0));
+      vload(vec_a, &sa(ik, ly0));
 
       vscal(reg_c[0], vec_a, vec_b.x);
       vscal(reg_c[1], vec_a, vec_b.y);
@@ -111,33 +116,33 @@ __kernel void gemm_v6_kernel(__global const float* A, __global const float* B,
     }
     barrier(CLK_LOCAL_MEM_FENCE);
   }
-  vec_c[0] = vload4(0, &GEMM_C(gy0, gx0));
-  vec_c[1] = vload4(0, &GEMM_C(gy1, gx0));
-  vec_c[2] = vload4(0, &GEMM_C(gy2, gx0));
-  vec_c[3] = vload4(0, &GEMM_C(gy3, gx0));
+  
+  float4 vec_c;
+  vload(vec_c, &GEMM_C(gy0, gx0));
+  vec_c.x = reg_c[0].x * alpha + vec_c.x * beta;
+  vec_c.y = reg_c[1].x * alpha + vec_c.y * beta;
+  vec_c.z = reg_c[2].x * alpha + vec_c.z * beta;
+  vec_c.w = reg_c[3].x * alpha + vec_c.w * beta;
+  vstore(&GEMM_C(gy0, gx0), vec_c);
 
-  vec_c[0].x = reg_c[0].x * alpha + vec_c[0].x * beta;
-  vec_c[0].y = reg_c[1].x * alpha + vec_c[0].y * beta;
-  vec_c[0].z = reg_c[2].x * alpha + vec_c[0].z * beta;
-  vec_c[0].w = reg_c[3].x * alpha + vec_c[0].w * beta;
-
-  vec_c[1].x = reg_c[0].y * alpha + vec_c[1].x * beta;
-  vec_c[1].y = reg_c[1].y * alpha + vec_c[1].y * beta;
-  vec_c[1].z = reg_c[2].y * alpha + vec_c[1].z * beta;
-  vec_c[1].w = reg_c[3].y * alpha + vec_c[1].w * beta;
-
-  vec_c[2].x = reg_c[0].z * alpha + vec_c[2].x * beta;
-  vec_c[2].y = reg_c[1].z * alpha + vec_c[2].y * beta;
-  vec_c[2].z = reg_c[2].z * alpha + vec_c[2].z * beta;
-  vec_c[2].w = reg_c[3].z * alpha + vec_c[2].w * beta;
-
-  vec_c[3].x = reg_c[0].w * alpha + vec_c[3].x * beta;
-  vec_c[3].y = reg_c[1].w * alpha + vec_c[3].y * beta;
-  vec_c[3].z = reg_c[2].w * alpha + vec_c[3].z * beta;
-  vec_c[3].w = reg_c[3].w * alpha + vec_c[3].w * beta;
-
-  vstore4(vec_c[0], 0, &GEMM_C(gy0, gx0));
-  vstore4(vec_c[1], 0, &GEMM_C(gy1, gx0));
-  vstore4(vec_c[2], 0, &GEMM_C(gy2, gx0));
-  vstore4(vec_c[3], 0, &GEMM_C(gy3, gx0));
+  vload(vec_c, &GEMM_C(gy1, gx0));
+  vec_c.x = reg_c[0].y * alpha + vec_c.x * beta;
+  vec_c.y = reg_c[1].y * alpha + vec_c.y * beta;
+  vec_c.z = reg_c[2].y * alpha + vec_c.z * beta;
+  vec_c.w = reg_c[3].y * alpha + vec_c.w * beta;
+  vstore(&GEMM_C(gy1, gx0), vec_c);
+  
+  vload(vec_c, &GEMM_C(gy2, gx0));
+  vec_c.x = reg_c[0].z * alpha + vec_c.x * beta;
+  vec_c.y = reg_c[1].z * alpha + vec_c.y * beta;
+  vec_c.z = reg_c[2].z * alpha + vec_c.z * beta;
+  vec_c.w = reg_c[3].z * alpha + vec_c.w * beta;
+  vstore(&GEMM_C(gy2, gx0), vec_c);
+  
+  vload(vec_c, &GEMM_C(gy3, gx0));
+  vec_c.x = reg_c[0].w * alpha + vec_c.x * beta;
+  vec_c.y = reg_c[1].w * alpha + vec_c.y * beta;
+  vec_c.z = reg_c[2].w * alpha + vec_c.z * beta;
+  vec_c.w = reg_c[3].w * alpha + vec_c.w * beta;
+  vstore(&GEMM_C(gy3, gx0), vec_c);
 }
