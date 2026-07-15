@@ -22,8 +22,7 @@ static const Variant kVariants[] = {
     {"v2", gemm_v2_benchmark}, {"v3", gemm_v3_benchmark},
     {"v4", gemm_v4_benchmark}, {"v5", gemm_v5_benchmark},
     {"v6", gemm_v6_benchmark}, {"v7", gemm_v7_benchmark},
-    {"v8", gemm_v8_benchmark},
-    // {"v9", gemm_v9_benchmark},
+    {"v8", gemm_v8_benchmark}, {"v9", gemm_v9_benchmark},
 };
 
 // ===========================================================================

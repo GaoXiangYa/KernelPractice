@@ -648,16 +648,20 @@ double gemm_v8_benchmark(const float* A, const float* B, float* C, int M, int N,
 
 void gemm_v9(const float* A, const float* B, float* C, int M, int N, int K,
              float alpha, float beta) {
-  constexpr int kRegM = 4;
-  constexpr int kRegN = 4;
-  constexpr int kTileM = 16;
-  constexpr int kTileN = 16;
+  const int kGlobalSizeM = M;
+  const int kGlobalSizeN = N;
+  constexpr int kMicroTileSize = 4;
+  constexpr int kThreadXCount = 256;
+  constexpr int kThreadYCount = 1;
+  constexpr int kBM = 64;
+  constexpr int kBN = 64;
 
-  cl::NDRange local_work_size(kTileN, kTileM);
-  cl::NDRange global_work_size((N + kTileN * kRegN - 1) / (kTileN * kRegN) *
-                                   kTileN,
-                               (M + kTileM * kRegM - 1) / (kTileM * kRegM) *
-                                   kTileM);
+  int num_groups_x = (N + kBM - 1) / kBM;
+  int num_groups_y = (M + kBN - 1) / kBN;
+
+  cl::NDRange global_work_size(num_groups_x * kThreadXCount,
+                               num_groups_y * kThreadYCount);
+  cl::NDRange local_work_size(kThreadXCount, kThreadYCount);
 
   auto& dm = DeviceManager::get();
   auto kernel =
@@ -682,16 +686,20 @@ void gemm_v9(const float* A, const float* B, float* C, int M, int N, int K,
 
 double gemm_v9_benchmark(const float* A, const float* B, float* C, int M, int N,
                          int K, float alpha, float beta) {
-  constexpr int kRegM = 4;
-  constexpr int kRegN = 4;
-  constexpr int kTileM = 16;
-  constexpr int kTileN = 16;
+  const int kGlobalSizeM = M;
+  const int kGlobalSizeN = N;
+  constexpr int kMicroTileSize = 4;
+  constexpr int kThreadXCount = 256;
+  constexpr int kThreadYCount = 1;
+  constexpr int kBM = 64;
+  constexpr int kBN = 64;
 
-  cl::NDRange local_work_size(kTileN, kTileM);
-  cl::NDRange global_work_size((N + kTileN * kRegN - 1) / (kTileN * kRegN) *
-                                   kTileN,
-                               (M + kTileM * kRegM - 1) / (kTileM * kRegM) *
-                                   kTileM);
+  int num_groups_x = (N + kBM - 1) / kBM;
+  int num_groups_y = (M + kBN - 1) / kBN;
+
+  cl::NDRange global_work_size(num_groups_x * kThreadXCount,
+                               num_groups_y * kThreadYCount);
+  cl::NDRange local_work_size(kThreadXCount, kThreadYCount);
 
   auto& dm = DeviceManager::get();
   auto kernel =
