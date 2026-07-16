@@ -74,7 +74,7 @@ __kernel void gemm_v9_kernel(__global const float* A, __global const float* B,
   const int a_row = c_row;
   const int b_col = c_col;
 
-  __local float sa[BK_PAD * BM];
+  __local float sa[BK * BM_PAD];
   __local float sb[BK * BN_PAD];
 
   float4 vec_a;
