@@ -223,9 +223,9 @@ int main() {
   // run_benchmark(2048, 2048, 2048);
   // run_benchmark(1024, 16, 256);
 
-  std::cout << "\n--- gemm_v1 ---\n";
-  run_benchmark_v1(2048, 2048, 2048);
-  // run_benchmark_v1(1024, 16, 256);
+  // std::cout << "\n--- gemm_v1 ---\n";
+  // run_benchmark_v1(2048, 2048, 2048);
+  // // run_benchmark_v1(1024, 16, 256);
 
   std::cout << "\n--- gemm_v2 ---\n";
   run_benchmark_v2(2048, 2048, 2048);

@@ -3,19 +3,13 @@
 #define sa(i, j) sa[(i) * BM + j]
 #define sb(i, j) sb[(i) * BN + j]
 
-#define MICRO_SIZE 4
-#define MICRO_BIT 2
-
 // #define vload(vec, mat, pred)
 // C[M, N] = A[M, K] * B[K, N]
 // BM, BN: block tile size (threads per block in x, y)
 // BK: K-dimension tile size
 // Each thread computes one output element using shared memory tiling.
 // 4x1 marco kernel
-// C(i + 0, j) = A(i + 0, k) * B(k, j)
-// C(i + 1, j) = A(i + 1, k) * B(k, j)
-// C(i + 2, j) = A(i + 2, k) * B(k, j)
-// C(i + 3, j) = A(i + 3, k) * B(k, j)
+// transpose matrix A
 
 #define vstore(addr, vec) *((float4*) addr) = vec
 #define vload(vec, addr) vec = *((float4*) (addr))
@@ -27,11 +21,11 @@ __global__ void gemm_v3_kernel(const float* __restrict__ A,
                                int lda, int ldb, int ldc) {
   const int tx = threadIdx.x;
   const int ty = threadIdx.y;
-  const int row_base = blockIdx.y * blockDim.y * MICRO_SIZE;
+  const int row_base = blockIdx.y * blockDim.y * TM;
   const int c_col = blockIdx.x * blockDim.x + tx;
   const int b_col = c_col;
 
-  const int ty0 = ty << MICRO_BIT;
+  const int ty0 = ty << 2;
   const int ty1 = ty + 1;
   const int ty2 = ty + 2;
   const int ty3 = ty + 3;
@@ -62,6 +56,7 @@ __global__ void gemm_v3_kernel(const float* __restrict__ A,
     for (int ik = 0; ik < BK; ++ik) {
       float val_b = sb(ik, tx);
       vload(a_vec, &sa(ik, ty0));
+
       acc.x += a_vec.x * val_b;
       acc.y += a_vec.y * val_b;
       acc.z += a_vec.z * val_b;
@@ -69,5 +64,17 @@ __global__ void gemm_v3_kernel(const float* __restrict__ A,
     }
     __syncthreads();
   }
-  vstore((&GEMM_C(c_row.x, tx)), acc);
+
+  if (a_pred[0] && b_pred0) {
+    GEMM_C(c_row.x, tx) = acc.x;
+  }
+  if (a_pred[1] && b_pred0) {
+    GEMM_C(c_row.y, tx) = acc.y;
+  }
+  if (a_pred[2] && b_pred0) {
+    GEMM_C(c_row.z, tx) = acc.z;
+  }
+  if (a_pred[3] && b_pred0) {
+    GEMM_C(c_row.w, tx) = acc.w;
+  }
 }
