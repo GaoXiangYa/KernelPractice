@@ -38,6 +38,7 @@ __global__ void gemm_v3_kernel(const float* __restrict__ A,
   const int4 c_row = (int4){a_row.x, a_row.y, a_row.z, a_row.w};
   float4 a_vec;
   bool a_pred[TM] = {a_row.x < M, a_row.y < M, a_row.z < M, a_row.w < M};
+
   const bool b_pred0 = b_col < N;
 
   for (int k = 0; k < K; k += BK) {
