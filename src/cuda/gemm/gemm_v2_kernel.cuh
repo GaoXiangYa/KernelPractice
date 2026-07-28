@@ -27,9 +27,9 @@ __global__ void gemm_v2_kernel(const float* __restrict__ A,
   const int b_col = c_col;
 
   const int ty0 = ty << MICRO_BIT;
-  const int ty1 = ty + 1;
-  const int ty2 = ty + 2;
-  const int ty3 = ty + 3;
+  const int ty1 = ty0 + 1;
+  const int ty2 = ty0 + 2;
+  const int ty3 = ty0 + 3;
 
   __shared__ float sa[BM * BK];
   __shared__ float sb[BK * BN];
@@ -67,7 +67,7 @@ __global__ void gemm_v2_kernel(const float* __restrict__ A,
 #pragma unroll
   for (int i = 0; i < TM; ++i) {
     if (a_pred[i] && b_pred0) {
-      GEMM_C(c_row[i], tx) = acc[i];
+      GEMM_C(c_row[i], c_col) = acc[i];
     }
   }
 }

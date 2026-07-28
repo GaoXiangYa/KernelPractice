@@ -67,15 +67,15 @@ __global__ void gemm_v3_kernel(const float* __restrict__ A,
   }
 
   if (a_pred[0] && b_pred0) {
-    GEMM_C(c_row.x, tx) = acc.x;
+    GEMM_C(c_row.x, c_col) = acc.x;
   }
   if (a_pred[1] && b_pred0) {
-    GEMM_C(c_row.y, tx) = acc.y;
+    GEMM_C(c_row.y, c_col) = acc.y;
   }
   if (a_pred[2] && b_pred0) {
-    GEMM_C(c_row.z, tx) = acc.z;
+    GEMM_C(c_row.z, c_col) = acc.z;
   }
   if (a_pred[3] && b_pred0) {
-    GEMM_C(c_row.w, tx) = acc.w;
+    GEMM_C(c_row.w, c_col) = acc.w;
   }
 }
