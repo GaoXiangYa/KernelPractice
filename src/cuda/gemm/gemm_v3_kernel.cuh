@@ -26,9 +26,9 @@ __global__ void gemm_v3_kernel(const float* __restrict__ A,
   const int b_col = c_col;
 
   const int ty0 = ty << 2;
-  const int ty1 = ty + 1;
-  const int ty2 = ty + 2;
-  const int ty3 = ty + 3;
+  const int ty1 = ty0 + 1;
+  const int ty2 = ty0 + 2;
+  const int ty3 = ty0 + 3;
 
   __shared__ float sa[BK * BM];
   __shared__ float sb[BK * BN];
