@@ -65,7 +65,9 @@ __global__ void gemm_v4_kernel(const float* __restrict__ A,
     bool b_pred_row = b_row < K;
 #pragma unroll
     for (int i = 0; i < TN; ++i) {
-      sb(ty, sb_col[i]) = b_pred_row && b_pred[i] ? B(b_row, b_col[i]) : 0.0f;
+      // reduce bank conflicts!
+      sb(ty, i * blockDim.x + tx) =
+          b_pred_row && b_pred[i] ? B(b_row, b_col[i]) : 0.0f;
     }
 
     __syncthreads();
@@ -76,7 +78,7 @@ __global__ void gemm_v4_kernel(const float* __restrict__ A,
         float a_val = sa(sa_row[i], ik);
 #pragma unroll
         for (int j = 0; j < TN; ++j) {
-          float b_val = sb(ik, sb_col[j]);
+          float b_val = sb(ik, j * blockDim.x + tx);
           acc(i, j) += a_val * b_val;
         }
       }
