@@ -18,9 +18,9 @@ void gemm_v0(const float* a, const float* b, float* c, int M, int N, int K) {
   CHECK_CUDA(
       cudaMemcpy(dev_b, b, K * N * sizeof(float), cudaMemcpyHostToDevice));
 
-  constexpr int BM = 16;
-  constexpr int BN = 16;
-  constexpr int BK = 8;
+  constexpr int BM = 32;
+  constexpr int BN = 32;
+  constexpr int BK = 32;
 
   dim3 block(BM, BN);
   dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
@@ -49,8 +49,8 @@ void gemm_v1(const float* a, const float* b, float* c, int M, int N, int K) {
   CHECK_CUDA(
       cudaMemcpy(dev_b, b, K * N * sizeof(float), cudaMemcpyHostToDevice));
 
-  constexpr int BM = 64;
-  constexpr int BN = 64;
+  constexpr int BM = 32;
+  constexpr int BN = 32;
   constexpr int BK = 32;
 
   constexpr int kThreadCountX = 32;
