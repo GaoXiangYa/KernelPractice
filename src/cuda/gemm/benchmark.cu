@@ -1,8 +1,5 @@
-#include <cuda_runtime.h>
-#include <cstdlib>
-#include <iostream>
-#include <vector>
 #include "benchmark.cuh"
+#include "gemm.cuh"
 #include "gemm_v0_kernel.cuh"
 #include "gemm_v1_kernel.cuh"
 #include "gemm_v2_kernel.cuh"
@@ -10,295 +7,153 @@
 #include "gemm_v4_kernel.cuh"
 #include "util.h"
 
-static void run_benchmark(int M, int N, int K) {
-  std::vector<float> a(M * K);
-  std::vector<float> b(K * N);
-  std::vector<float> c(M * N, 0.0f);
+#include <cuda_runtime.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <vector>
 
-  for (auto& v : a)
-    v = float(rand()) / RAND_MAX * 2.0f - 1.0f;
-  for (auto& v : b)
-    v = float(rand()) / RAND_MAX * 2.0f - 1.0f;
+// ---- per-version kernel launch helpers (no memcpy, pure kernel timing) ----
 
-  float *dev_a = nullptr, *dev_b = nullptr, *dev_c = nullptr;
-  CHECK_CUDA(cudaMalloc(&dev_a, M * K * sizeof(float)));
-  CHECK_CUDA(cudaMalloc(&dev_b, K * N * sizeof(float)));
-  CHECK_CUDA(cudaMalloc(&dev_c, M * N * sizeof(float)));
-  CHECK_CUDA(cudaMemcpy(dev_a, a.data(), M * K * sizeof(float),
-                        cudaMemcpyHostToDevice));
-  CHECK_CUDA(cudaMemcpy(dev_b, b.data(), K * N * sizeof(float),
-                        cudaMemcpyHostToDevice));
-
+static void launch_v0(const float* da, const float* db, float* dc, int M, int N,
+                      int K) {
+  constexpr int BM = 32, BN = 32, BK = 32;
   int lda = K, ldb = N, ldc = N;
-
-  constexpr int BM = 32;
-  constexpr int BN = 32;
-  constexpr int BK = 64;
-
   dim3 block(BM, BN);
   dim3 grid((N + BN - 1) / BN, (M + BM - 1) / BM);
-
-  // 2 * M * N * K FLOPs (one mul + one add per inner loop)
-  double flops = 2.0 * M * N * K;
-  double bytes = (M * K + K * N + M * N) * sizeof(float);
-
-  char name[128];
-  snprintf(name, sizeof(name), "gemm_v0 [M=%d,N=%d,K=%d]", M, N, K);
-
-  std::cout << "\n";
-  benchmarkKernel(name, grid, block, flops, bytes, 10,
-                  gemm_v0_kernel<BM, BN, BK>, dev_a, dev_b, dev_c, M, N, K, lda,
-                  ldb, ldc);
-
-  CHECK_CUDA(cudaMemcpy(c.data(), dev_c, M * N * sizeof(float),
-                        cudaMemcpyDeviceToHost));
-
-  CHECK_CUDA(cudaFree(dev_a));
-  CHECK_CUDA(cudaFree(dev_b));
-  CHECK_CUDA(cudaFree(dev_c));
+  gemm_v0_kernel<BM, BN, BK>
+      <<<grid, block>>>(da, db, dc, M, N, K, lda, ldb, ldc);
 }
 
-static void run_benchmark_v1(int M, int N, int K) {
-  std::vector<float> a(M * K);
-  std::vector<float> b(K * N);
-  std::vector<float> c(M * N, 0.0f);
-
-  for (auto& v : a)
-    v = float(rand()) / RAND_MAX * 2.0f - 1.0f;
-  for (auto& v : b)
-    v = float(rand()) / RAND_MAX * 2.0f - 1.0f;
-
-  float *dev_a = nullptr, *dev_b = nullptr, *dev_c = nullptr;
-  CHECK_CUDA(cudaMalloc(&dev_a, M * K * sizeof(float)));
-  CHECK_CUDA(cudaMalloc(&dev_b, K * N * sizeof(float)));
-  CHECK_CUDA(cudaMalloc(&dev_c, M * N * sizeof(float)));
-  CHECK_CUDA(cudaMemcpy(dev_a, a.data(), M * K * sizeof(float),
-                        cudaMemcpyHostToDevice));
-  CHECK_CUDA(cudaMemcpy(dev_b, b.data(), K * N * sizeof(float),
-                        cudaMemcpyHostToDevice));
-
+static void launch_v1(const float* da, const float* db, float* dc, int M, int N,
+                      int K) {
+  constexpr int BM = 32, BN = 32, BK = 32;
+  constexpr int TX = 32, TY = 32;
   int lda = K, ldb = N, ldc = N;
-
-  constexpr int BM = 64;
-  constexpr int BN = 64;
-  constexpr int BK = 32;
-
-  constexpr int kThreadCountX = 32;
-  constexpr int kThreadCountY = 32;
-
-  dim3 block(kThreadCountX, kThreadCountY);
-  dim3 grid((N + kThreadCountX - 1) / kThreadCountX,
-            (M + kThreadCountY - 1) / kThreadCountY);
-
-  // 2 * M * N * K FLOPs (one mul + one add per inner loop)
-  double flops = 2.0 * M * N * K;
-  double bytes = (M * K + K * N + M * N) * sizeof(float);
-
-  char name[128];
-  snprintf(name, sizeof(name), "gemm_v1 [M=%d,N=%d,K=%d]", M, N, K);
-
-  std::cout << "\n";
-  benchmarkKernel(name, grid, block, flops, bytes, 1,
-                  gemm_v1_kernel<BM, BN, BK>, dev_a, dev_b, dev_c, M, N, K, lda,
-                  ldb, ldc);
-
-  CHECK_CUDA(cudaMemcpy(c.data(), dev_c, M * N * sizeof(float),
-                        cudaMemcpyDeviceToHost));
-
-  CHECK_CUDA(cudaFree(dev_a));
-  CHECK_CUDA(cudaFree(dev_b));
-  CHECK_CUDA(cudaFree(dev_c));
+  dim3 block(TX, TY);
+  dim3 grid((N + TX - 1) / TX, (M + TY - 1) / TY);
+  gemm_v1_kernel<BM, BN, BK>
+      <<<grid, block>>>(da, db, dc, M, N, K, lda, ldb, ldc);
 }
 
-static void run_benchmark_v2(int M, int N, int K) {
-  std::vector<float> a(M * K);
-  std::vector<float> b(K * N);
-  std::vector<float> c(M * N, 0.0f);
-
-  for (auto& v : a)
-    v = float(rand()) / RAND_MAX * 2.0f - 1.0f;
-  for (auto& v : b)
-    v = float(rand()) / RAND_MAX * 2.0f - 1.0f;
-
-  float *dev_a = nullptr, *dev_b = nullptr, *dev_c = nullptr;
-  CHECK_CUDA(cudaMalloc(&dev_a, M * K * sizeof(float)));
-  CHECK_CUDA(cudaMalloc(&dev_b, K * N * sizeof(float)));
-  CHECK_CUDA(cudaMalloc(&dev_c, M * N * sizeof(float)));
-  CHECK_CUDA(cudaMemcpy(dev_a, a.data(), M * K * sizeof(float),
-                        cudaMemcpyHostToDevice));
-  CHECK_CUDA(cudaMemcpy(dev_b, b.data(), K * N * sizeof(float),
-                        cudaMemcpyHostToDevice));
-
+static void launch_v2(const float* da, const float* db, float* dc, int M, int N,
+                      int K) {
+  constexpr int BM = 128, BN = 32, BK = 32, TM = 4, TN = 1;
+  constexpr int TX = 32, TY = 32;
   int lda = K, ldb = N, ldc = N;
-
-  constexpr int BM = 128;
-  constexpr int BN = 32;
-  constexpr int BK = 32;
-  constexpr int TM = 4;
-  constexpr int TN = 1;
-
-  constexpr int kThreadCountX = 32;
-  constexpr int kThreadCountY = 32;
-
-  dim3 block(kThreadCountX, kThreadCountY);
-  dim3 grid((N + (kThreadCountX * TN) - 1) / (kThreadCountX * TN),
-            (M + (kThreadCountY * TM) - 1) / (kThreadCountY * TM));
-
-  // gemm_v2_kernel<BM, BN, BK, TM, TN>
-  //     <<<grid, block>>>(dev_a, dev_b, dev_c, M, N, K, lda, ldb, ldc);
-  // 2 * M * N * K FLOPs (one mul + one add per inner loop)
-  double flops = 2.0 * M * N * K;
-  double bytes = (M * K + K * N + M * N) * sizeof(float);
-
-  char name[128];
-  snprintf(name, sizeof(name), "gemm_v2 [M=%d,N=%d,K=%d]", M, N, K);
-
-  std::cout << "\n";
-  benchmarkKernel(name, grid, block, flops, bytes, 1,
-                  gemm_v2_kernel<BM, BN, BK, TM, TN>, dev_a, dev_b, dev_c, M, N,
-                  K, lda, ldb, ldc);
-
-  CHECK_CUDA(cudaMemcpy(c.data(), dev_c, M * N * sizeof(float),
-                        cudaMemcpyDeviceToHost));
-
-  CHECK_CUDA(cudaFree(dev_a));
-  CHECK_CUDA(cudaFree(dev_b));
-  CHECK_CUDA(cudaFree(dev_c));
+  dim3 block(TX, TY);
+  dim3 grid((N + TX * TN - 1) / (TX * TN), (M + TY * TM - 1) / (TY * TM));
+  gemm_v2_kernel<BM, BN, BK, TM, TN>
+      <<<grid, block>>>(da, db, dc, M, N, K, lda, ldb, ldc);
 }
 
-static void run_benchmark_v3(int M, int N, int K) {
-  std::vector<float> a(M * K);
-  std::vector<float> b(K * N);
-  std::vector<float> c(M * N, 0.0f);
-
-  for (auto& v : a)
-    v = float(rand()) / RAND_MAX * 2.0f - 1.0f;
-  for (auto& v : b)
-    v = float(rand()) / RAND_MAX * 2.0f - 1.0f;
-
-  float *dev_a = nullptr, *dev_b = nullptr, *dev_c = nullptr;
-  CHECK_CUDA(cudaMalloc(&dev_a, M * K * sizeof(float)));
-  CHECK_CUDA(cudaMalloc(&dev_b, K * N * sizeof(float)));
-  CHECK_CUDA(cudaMalloc(&dev_c, M * N * sizeof(float)));
-  CHECK_CUDA(cudaMemcpy(dev_a, a.data(), M * K * sizeof(float),
-                        cudaMemcpyHostToDevice));
-  CHECK_CUDA(cudaMemcpy(dev_b, b.data(), K * N * sizeof(float),
-                        cudaMemcpyHostToDevice));
-
+static void launch_v3(const float* da, const float* db, float* dc, int M, int N,
+                      int K) {
+  constexpr int BM = 128, BN = 32, BK = 32, TM = 4, TN = 1;
+  constexpr int TX = 32, TY = 32;
   int lda = K, ldb = N, ldc = N;
-
-  constexpr int BM = 128;
-  constexpr int BN = 32;
-  constexpr int BK = 32;
-  constexpr int TM = 4;
-  constexpr int TN = 1;
-
-  constexpr int kThreadCountX = 32;
-  constexpr int kThreadCountY = 32;
-
-  dim3 block(kThreadCountX, kThreadCountY);
-  dim3 grid((N + (kThreadCountX * TN) - 1) / (kThreadCountX * TN),
-            (M + (kThreadCountY * TM) - 1) / (kThreadCountY * TM));
-
-  // gemm_v3_kernel<BM, BN, BK, TM, TN>
-  //     <<<grid, block>>>(dev_a, dev_b, dev_c, M, N, K, lda, ldb, ldc);
-
-  // 2 * M * N * K FLOPs (one mul + one add per inner loop)
-  double flops = 2.0 * M * N * K;
-  double bytes = (M * K + K * N + M * N) * sizeof(float);
-
-  char name[128];
-  snprintf(name, sizeof(name), "gemm_v2 [M=%d,N=%d,K=%d]", M, N, K);
-
-  std::cout << "\n";
-  benchmarkKernel(name, grid, block, flops, bytes, 1,
-                  gemm_v3_kernel<BM, BN, BK, TM, TN>, dev_a, dev_b, dev_c, M, N,
-                  K, lda, ldb, ldc);
-
-  CHECK_CUDA(cudaMemcpy(c.data(), dev_c, M * N * sizeof(float),
-                        cudaMemcpyDeviceToHost));
-
-  CHECK_CUDA(cudaFree(dev_a));
-  CHECK_CUDA(cudaFree(dev_b));
-  CHECK_CUDA(cudaFree(dev_c));
+  dim3 block(TX, TY);
+  dim3 grid((N + TX * TN - 1) / (TX * TN), (M + TY * TM - 1) / (TY * TM));
+  gemm_v3_kernel<BM, BN, BK, TM, TN>
+      <<<grid, block>>>(da, db, dc, M, N, K, lda, ldb, ldc);
 }
 
-static void run_benchmark_v4(int M, int N, int K) {
-  std::vector<float> a(M * K);
-  std::vector<float> b(K * N);
-  std::vector<float> c(M * N, 0.0f);
-
-  for (auto& v : a)
-    v = float(rand()) / RAND_MAX * 2.0f - 1.0f;
-  for (auto& v : b)
-    v = float(rand()) / RAND_MAX * 2.0f - 1.0f;
-
-  float *dev_a = nullptr, *dev_b = nullptr, *dev_c = nullptr;
-  CHECK_CUDA(cudaMalloc(&dev_a, M * K * sizeof(float)));
-  CHECK_CUDA(cudaMalloc(&dev_b, K * N * sizeof(float)));
-  CHECK_CUDA(cudaMalloc(&dev_c, M * N * sizeof(float)));
-  CHECK_CUDA(cudaMemcpy(dev_a, a.data(), M * K * sizeof(float),
-                        cudaMemcpyHostToDevice));
-  CHECK_CUDA(cudaMemcpy(dev_b, b.data(), K * N * sizeof(float),
-                        cudaMemcpyHostToDevice));
-
+static void launch_v4(const float* da, const float* db, float* dc, int M, int N,
+                      int K) {
+  constexpr int BM = 128, BN = 128, BK = 16, TM = 8, TN = 8;
+  constexpr int TX = 16, TY = 16;
   int lda = K, ldb = N, ldc = N;
-
-  constexpr int BM = 128;
-  constexpr int BN = 128;
-  constexpr int BK = 32;
-  constexpr int TM = 4;
-  constexpr int TN = 4;
-
-  constexpr int kThreadCountX = 32;
-  constexpr int kThreadCountY = 32;
-
-  dim3 block(kThreadCountX, kThreadCountY);
-  dim3 grid((N + (kThreadCountX * TN) - 1) / (kThreadCountX * TN),
-            (M + (kThreadCountY * TM) - 1) / (kThreadCountY * TM));
-
-  // gemm_v3_kernel<BM, BN, BK, TM, TN>
-  //     <<<grid, block>>>(dev_a, dev_b, dev_c, M, N, K, lda, ldb, ldc);
-
-  // 2 * M * N * K FLOPs (one mul + one add per inner loop)
-  double flops = 2.0 * M * N * K;
-  double bytes = (M * K + K * N + M * N) * sizeof(float);
-
-  char name[128];
-  snprintf(name, sizeof(name), "gemm_v2 [M=%d,N=%d,K=%d]", M, N, K);
-
-  std::cout << "\n";
-  benchmarkKernel(name, grid, block, flops, bytes, 1,
-                  gemm_v4_kernel<BM, BN, BK, TM, TN>, dev_a, dev_b, dev_c, M, N,
-                  K, lda, ldb, ldc);
-
-  CHECK_CUDA(cudaMemcpy(c.data(), dev_c, M * N * sizeof(float),
-                        cudaMemcpyDeviceToHost));
-
-  CHECK_CUDA(cudaFree(dev_a));
-  CHECK_CUDA(cudaFree(dev_b));
-  CHECK_CUDA(cudaFree(dev_c));
+  dim3 block(TX, TY);
+  dim3 grid((N + TX * TN - 1) / (TX * TN), (M + TY * TM - 1) / (TY * TM));
+  gemm_v4_kernel<BM, BN, BK, TM, TN>
+      <<<grid, block>>>(da, db, dc, M, N, K, lda, ldb, ldc);
 }
-int main() {
-  std::cout << "=== CUDA GEMM Benchmark ===\n";
 
-  // std::cout << "\n--- gemm_v0 ---\n";
-  // run_benchmark(2048, 2048, 2048);
-  // run_benchmark(1024, 16, 256);
+// ---- timing helper ----
 
-  // std::cout << "\n--- gemm_v1 ---\n";
-  // run_benchmark_v1(2048, 2048, 2048);
-  // // run_benchmark_v1(1024, 16, 256);
+static double
+bench(const char* name,
+      void (*launch)(const float*, const float*, float*, int, int, int),
+      const float* da, const float* db, float* dc, int M, int N, int K) {
+  // warmup
+  launch(da, db, dc, M, N, K);
+  cudaDeviceSynchronize();
 
-  std::cout << "\n--- gemm_v2 ---\n";
-  run_benchmark_v2(2048, 2048, 2048);
-  // run_benchmark_v2(1024, 16, 256);
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start);
+  for (int r = 0; r < 10; ++r)
+    launch(da, db, dc, M, N, K);
+  cudaEventRecord(stop);
+  cudaEventSynchronize(stop);
 
-  std::cout << "\n--- gemm_v3 ---\n";
-  run_benchmark_v3(2048, 2048, 2048);
-  // run_benchmark_v2(1024, 16, 256);
+  float ms;
+  cudaEventElapsedTime(&ms, start, stop);
+  ms /= 10.0f;
+  cudaEventDestroy(start);
+  cudaEventDestroy(stop);
 
-  std::cout << "\n--- gemm_v4 ---\n";
-  run_benchmark_v4(2048, 2048, 2048);
+  double gflops = (2.0 * M * N * K) / (ms / 1000.0) / 1e9;
+  std::printf("%s,%d,%d,%d,%.2f\n", name, M, N, K, gflops);
+  return gflops;
+}
+
+// ---- dispatch table ----
+
+struct KernelEntry {
+  const char* name;
+  void (*launch)(const float*, const float*, float*, int, int, int);
+};
+
+static const KernelEntry kKernels[] = {
+    {"v0", launch_v0}, {"v1", launch_v1}, {"v2", launch_v2},
+    {"v3", launch_v3}, {"v4", launch_v4},
+};
+
+static bool enabled(const KernelEntry& e, int argc, char** argv) {
+  if (argc <= 1)
+    return true;  // no args → run all
+  for (int i = 1; i < argc; ++i)
+    if (std::strcmp(argv[i], e.name) == 0)
+      return true;
+  return false;
+}
+
+// ---- main ----
+
+int main(int argc, char** argv) {
+  std::printf("version,M,N,K,gflops\n");
+
+  constexpr int bg = 2048;
+  constexpr int ed = 2048;
+  constexpr int step = 256;
+  for (int size = bg; size <= ed; size += step) {
+    int M = size, N = size, K = size;
+
+    std::vector<float> ha(M * K), hb(K * N);
+    for (auto& v : ha)
+      v = float(rand()) / RAND_MAX * 2.0f - 1.0f;
+    for (auto& v : hb)
+      v = float(rand()) / RAND_MAX * 2.0f - 1.0f;
+
+    float *da = nullptr, *db = nullptr, *dc = nullptr;
+    CHECK_CUDA(cudaMalloc(&da, M * K * sizeof(float)));
+    CHECK_CUDA(cudaMalloc(&db, K * N * sizeof(float)));
+    CHECK_CUDA(cudaMalloc(&dc, M * N * sizeof(float)));
+    CHECK_CUDA(cudaMemcpy(da, ha.data(), M * K * sizeof(float),
+                          cudaMemcpyHostToDevice));
+    CHECK_CUDA(cudaMemcpy(db, hb.data(), K * N * sizeof(float),
+                          cudaMemcpyHostToDevice));
+
+    for (const auto& ke : kKernels) {
+      if (enabled(ke, argc, argv))
+        bench(ke.name, ke.launch, da, db, dc, M, N, K);
+    }
+
+    CHECK_CUDA(cudaFree(da));
+    CHECK_CUDA(cudaFree(db));
+    CHECK_CUDA(cudaFree(dc));
+  }
   return 0;
 }
