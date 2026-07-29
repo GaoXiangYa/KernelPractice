@@ -7,7 +7,7 @@ void launch_gemm_q4_1_v0(const unsigned char* A, const float* B, float* C,
 
     auto& dm = DeviceManager::get();
     auto kernel = dm.build_kernel("../src/opencl/gemm_q4_1/gemm_q4_1_v0.cl",
-                                  "gemm_q4_v0_kernel");
+                                  "gemm_q4_1_v0_kernel");
 
     size_t blocks_per_row = K / block_k;
     size_t block_bytes    = sizeof(float) * 2 + block_k / 2;
@@ -37,6 +37,6 @@ void launch_gemm_q4_1_v0(const unsigned char* A, const float* B, float* C,
     cl::NDRange global(gx, gy);
     cl::NDRange local(tx, ty);
 
-    dm.launch(kernel, global, local, "gemm_q4_v0_kernel");
+    dm.launch(kernel, global, local, "gemm_q4_1_v0_kernel");
     dm.read_buffer(d_C, sizeof(float) * elems_C, C);
 }
