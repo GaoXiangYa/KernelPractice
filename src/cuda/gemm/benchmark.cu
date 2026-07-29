@@ -5,6 +5,7 @@
 #include "gemm_v2_kernel.cuh"
 #include "gemm_v3_kernel.cuh"
 #include "gemm_v4_kernel.cuh"
+#include "gemm_v5_kernel.cuh"
 #include "util.h"
 
 #include <cuda_runtime.h>
@@ -60,8 +61,8 @@ static void launch_v3(const float* da, const float* db, float* dc, int M, int N,
 
 static void launch_v4(const float* da, const float* db, float* dc, int M, int N,
                       int K) {
-  constexpr int BM = 128, BN = 128, BK = 16, TM = 8, TN = 8;
-  constexpr int TX = 16, TY = 16;
+  constexpr int BM = 128, BN = 128, BK = 32, TM = 4, TN = 4;
+  constexpr int TX = 32, TY = 32;
   int lda = K, ldb = N, ldc = N;
   dim3 block(TX, TY);
   dim3 grid((N + TX * TN - 1) / (TX * TN), (M + TY * TM - 1) / (TY * TM));
@@ -69,6 +70,16 @@ static void launch_v4(const float* da, const float* db, float* dc, int M, int N,
       <<<grid, block>>>(da, db, dc, M, N, K, lda, ldb, ldc);
 }
 
+static void launch_v5(const float* da, const float* db, float* dc, int M, int N,
+                      int K) {
+  constexpr int BM = 128, BN = 128, BK = 16, TM = 8, TN = 8;
+  constexpr int TX = 16, TY = 16;
+  int lda = K, ldb = N, ldc = N;
+  dim3 block(TX, TY);
+  dim3 grid((N + TX * TN - 1) / (TX * TN), (M + TY * TM - 1) / (TY * TM));
+  gemm_v5_kernel<BM, BN, BK, TM, TN>
+      <<<grid, block>>>(da, db, dc, M, N, K, lda, ldb, ldc);
+}
 // ---- timing helper ----
 
 static double
@@ -108,7 +119,7 @@ struct KernelEntry {
 
 static const KernelEntry kKernels[] = {
     {"v0", launch_v0}, {"v1", launch_v1}, {"v2", launch_v2},
-    {"v3", launch_v3}, {"v4", launch_v4},
+    {"v3", launch_v3}, {"v4", launch_v4}, {"v5", launch_v5},
 };
 
 static bool enabled(const KernelEntry& e, int argc, char** argv) {
@@ -125,8 +136,8 @@ static bool enabled(const KernelEntry& e, int argc, char** argv) {
 int main(int argc, char** argv) {
   std::printf("version,M,N,K,gflops\n");
 
-  constexpr int bg = 2048;
-  constexpr int ed = 2048;
+  constexpr int bg = 256;
+  constexpr int ed = 6144;
   constexpr int step = 256;
   for (int size = bg; size <= ed; size += step) {
     int M = size, N = size, K = size;
