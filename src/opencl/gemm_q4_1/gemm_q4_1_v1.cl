@@ -9,16 +9,15 @@
 #define sa(i, j) sa[(i) * BK + j]
 #define sb(i, j) sb[(i) * BN + j]
 
-inline void deq_q4_1_block(__global const uchar* qs, float d, float m,
-                           __local float* dest) {
+inline void deq_q4_1_block(__global const uchar* qs, __local float* dest) {
     for (int i = 0; i < BLOCK_K / 2; ++i) {
         uchar packed = qs[i];
-        dest[2 * i + 0] = (float)(packed & 0x0F) * d + m;
-        dest[2 * i + 1] = (float)(packed >> 4)   * d + m;
+        dest[2 * i + 0] = (float)(packed & 0x0F);
+        dest[2 * i + 1] = (float)(packed >> 4);
     }
 }
 
-__kernel void gemm_q4_1_v0_kernel(
+__kernel void gemm_q4_1_v1_kernel(
     __global const uchar* A,
     __global const float* B,
     __global       float* C,
@@ -36,6 +35,8 @@ __kernel void gemm_q4_1_v0_kernel(
     int row_offset = gy * row_stride;
     __local float sa[BM * BK];
     __local float sb[BK * BN];
+    float d_frag[BM];
+    float m_frag[BM];
     float acc = 0.0f;
 
     for (int k = 0; k < K; k += BK) {
@@ -45,8 +46,10 @@ __kernel void gemm_q4_1_v0_kernel(
             __global uchar* tile_a_block = (__global uchar*)A_block_per_row + A_block_col * block_size;
             float d = *((__global float*)tile_a_block);
             float m = *((__global float*)(tile_a_block + sizeof(float)));
+            d_frag[ly] = d;
+            m_frag[ly] = m;
             __global uchar* q = (__global uchar*)tile_a_block + sizeof(float) + sizeof(float);
-            deq_q4_1_block(q, d, m, sa + ly * BK);
+            deq_q4_1_block(q, sa + ly * BK);
         }
 
         const int b_row = k + ly;
@@ -58,9 +61,14 @@ __kernel void gemm_q4_1_v0_kernel(
 
         barrier(CLK_LOCAL_MEM_FENCE);
 
+        float sum0 = 0.0f;
+        float sum1 = 0.0f;
         for (int ik = 0; ik < BK; ++ ik) {
-            acc += sa(ly, ik) * sb(ik, lx);
+            float val_b = sb(ik, lx);
+            sum0 += sa(ly, ik) * val_b;
+            sum1 += val_b;
         }
+        acc += (d_frag[ly] * sum0 + m_frag[ly] * sum1);
 
         barrier(CLK_LOCAL_MEM_FENCE);
     }
