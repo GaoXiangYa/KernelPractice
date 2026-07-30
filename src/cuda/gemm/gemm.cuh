@@ -10,3 +10,4 @@ void gemm_v2(const float* a, const float* b, float* c, int M, int N, int K);
 void gemm_v3(const float* a, const float* b, float* c, int M, int N, int K);
 void gemm_v4(const float* a, const float* b, float* c, int M, int N, int K);
 void gemm_v5(const float* a, const float* b, float* c, int M, int N, int K);
+void gemm_v6(const float* a, const float* b, float* c, int M, int N, int K);

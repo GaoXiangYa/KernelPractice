@@ -6,6 +6,7 @@
 #include "gemm_v3_kernel.cuh"
 #include "gemm_v4_kernel.cuh"
 #include "gemm_v5_kernel.cuh"
+#include "gemm_v6_kernel.cuh"
 #include "util.h"
 
 #include <cuda_runtime.h>
@@ -80,6 +81,17 @@ static void launch_v5(const float* da, const float* db, float* dc, int M, int N,
   gemm_v5_kernel<BM, BN, BK, TM, TN>
       <<<grid, block>>>(da, db, dc, M, N, K, lda, ldb, ldc);
 }
+
+static void launch_v6(const float* da, const float* db, float* dc, int M, int N,
+                      int K) {
+  constexpr int BM = 256, BN = 128, BK = 32, TM = 8, TN = 8;
+  constexpr int TX = 16, TY = 32;
+  int lda = K, ldb = N, ldc = N;
+  dim3 block(TX, TY);
+  dim3 grid((N + TX * TN - 1) / (TX * TN), (M + TY * TM - 1) / (TY * TM));
+  gemm_v6_kernel<BM, BN, BK, TM, TN>
+      <<<grid, block>>>(da, db, dc, M, N, K, lda, ldb, ldc);
+}
 // ---- timing helper ----
 
 static double
@@ -94,7 +106,7 @@ bench(const char* name,
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
   cudaEventRecord(start);
-  for (int r = 0; r < 10; ++r)
+  for (int r = 0; r < 1; ++r)
     launch(da, db, dc, M, N, K);
   cudaEventRecord(stop);
   cudaEventSynchronize(stop);
@@ -117,10 +129,10 @@ struct KernelEntry {
   void (*launch)(const float*, const float*, float*, int, int, int);
 };
 
-static const KernelEntry kKernels[] = {
-    {"v0", launch_v0}, {"v1", launch_v1}, {"v2", launch_v2},
-    {"v3", launch_v3}, {"v4", launch_v4}, {"v5", launch_v5},
-};
+static const KernelEntry kKernels[] = {{"v0", launch_v0}, {"v1", launch_v1},
+                                       {"v2", launch_v2}, {"v3", launch_v3},
+                                       {"v4", launch_v4}, {"v5", launch_v5},
+                                       {"v6", launch_v6}};
 
 static bool enabled(const KernelEntry& e, int argc, char** argv) {
   if (argc <= 1)
@@ -136,7 +148,7 @@ static bool enabled(const KernelEntry& e, int argc, char** argv) {
 int main(int argc, char** argv) {
   std::printf("version,M,N,K,gflops\n");
 
-  constexpr int bg = 256;
+  constexpr int bg = 6144;
   constexpr int ed = 6144;
   constexpr int step = 256;
   for (int size = bg; size <= ed; size += step) {
