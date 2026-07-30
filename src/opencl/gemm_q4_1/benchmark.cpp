@@ -29,21 +29,45 @@ static void pack_q4_1(const float* src, int k, int block_k,
     }
 }
 
+// ===========================================================================
+// Variant registry — mirrors test.cpp
+// ===========================================================================
+using GemmQ4Func = void (*)(const unsigned char*, const float*, float*,
+                            int, int, int, int, float, float);
+
+struct Variant {
+    const char* name;
+    GemmQ4Func  func;
+};
+
+static const Variant kVariants[] = {
+    {"v0", launch_gemm_q4_1_v0},
+    {"v1", launch_gemm_q4_1_v1},
+    // {"v2", launch_gemm_q4_1_v2},   // future
+};
+
+// ===========================================================================
 int main() {
-    constexpr int block_k = 32;
-    constexpr float alpha = 1.0f, beta = 0.0f;
-    constexpr int warmup   = 3;
-    constexpr int timed    = 20;
+    constexpr int   block_k = 32;
+    constexpr float alpha   = 1.0f, beta = 0.0f;
+    constexpr int   warmup  = 3;
+    constexpr int   timed   = 20;
 
-    std::cout << std::format("gemm_q4  benchmark  (block_k={}, warmup={}, iters={})\n\n",
-                             block_k, warmup, timed);
-    std::cout << "     M    N    K        ms     GFLOPS\n";
-    std::cout << "  ----  ---  ---  --------  -------\n";
+    std::cout << std::format(
+        "gemm_q4_1  benchmark  (block_k={}, warmup={}, iters={})\n\n",
+        block_k, warmup, timed);
+    std::cout << "variant      M    N    K        ms     GFLOPS\n";
+    std::cout << "--------   ---  ---  ---  --------  -------\n";
 
-    struct Prob { int M, N, K; const char* t; };
-    Prob ps[] = {{128,128,128,"tiny"}, {256,256,256,"S"}, {512,512,512,"M"}, {1024,1024,1024,"L"}};
+    struct Prob { int M, N, K; const char* tag; };
+    Prob probs[] = {
+        { 128,  128,  128, "tiny"},
+        { 256,  256,  256, "S   "},
+        { 512,  512,  512, "M   "},
+        {1024, 1024, 1024, "L   "},
+    };
 
-    for (auto& p : ps) {
+    for (auto& p : probs) {
         int blocks = p.K / block_k, bytes = sizeof(float)*2 + block_k/2;
         std::vector<unsigned char> A_q4(p.M * blocks * bytes);
         std::vector<float> A_f32(p.M * p.K);
@@ -58,24 +82,29 @@ int main() {
                           &A_q4[r * blocks * bytes + b * bytes]);
         }
 
-        // warmup
-        for (int i = 0; i < warmup; ++i)
-            launch_gemm_q4_1_v0(A_q4.data(), B.data(), C.data(),
-                              p.M, p.N, p.K, block_k, alpha, beta);
+        for (auto& v : kVariants) {
+            // warmup
+            for (int i = 0; i < warmup; ++i)
+                v.func(A_q4.data(), B.data(), C.data(),
+                       p.M, p.N, p.K, block_k, alpha, beta);
 
-        auto t0 = std::chrono::high_resolution_clock::now();
-        for (int i = 0; i < timed; ++i)
-            launch_gemm_q4_1_v0(A_q4.data(), B.data(), C.data(),
-                              p.M, p.N, p.K, block_k, alpha, beta);
-        auto t1 = std::chrono::high_resolution_clock::now();
+            auto t0 = std::chrono::high_resolution_clock::now();
+            for (int i = 0; i < timed; ++i)
+                v.func(A_q4.data(), B.data(), C.data(),
+                       p.M, p.N, p.K, block_k, alpha, beta);
+            auto t1 = std::chrono::high_resolution_clock::now();
 
-        double s = std::chrono::duration<double>(t1-t0).count() / timed;
-        double flops = 2.0 * p.M * p.N * p.K;  // same as regular GEMM
-        double gflops = flops / s / 1e9;
+            double s = std::chrono::duration<double>(t1 - t0).count() / timed;
+            double flops   = 2.0 * p.M * p.N * p.K;
+            double gflops  = flops / s / 1e9;
 
-        std::cout << std::format("  {} | {:4d} {:4d} {:4d} | {:8.3f} ms | {:7.1f} GFLOPS\n",
-                                 p.t, p.M, p.N, p.K, s*1e3, gflops);
+            std::string label = std::format("{}_{}", v.name, p.tag);
+            std::cout << std::format(
+                "  {}  | {:4d} {:4d} {:4d} | {:8.3f} ms | {:7.1f} GFLOPS\n",
+                label, p.M, p.N, p.K, s * 1e3, gflops);
+        }
     }
+
     std::cout << std::endl;
     return 0;
 }

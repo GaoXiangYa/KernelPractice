@@ -66,24 +66,38 @@ static void gemm_q4_ref(const unsigned char* A_q4, const float* B, float* C,
 }
 
 // ===========================================================================
+// Variant registry — add new versions here
+// ===========================================================================
+using GemmQ4Func = void (*)(const unsigned char*, const float*, float*,
+                            int, int, int, int, float, float);
+
+struct Variant {
+    const char* name;
+    GemmQ4Func  func;
+};
+
+static const Variant kVariants[] = {
+    {"v0", launch_gemm_q4_1_v0},
+    {"v1", launch_gemm_q4_1_v1},
+    // {"v2", launch_gemm_q4_1_v2},   // future
+};
+
+// ===========================================================================
 // Test fixture
 // ===========================================================================
 class GemmQ4Test : public ::testing::Test {
 protected:
-    void run_test(int M, int N, int K, int block_k,
+    void run_case(int M, int N, int K, int block_k = 32,
                   float alpha = 1.0f, float beta = 0.0f,
                   float eps = 5.0f) {
-        // Use values that quantize reasonably well
         std::vector<float> A_f32(M * K);
         for (size_t i = 0; i < A_f32.size(); ++i)
             A_f32[i] = (float)(rand() % 100) / 50.0f - 1.0f;
 
-        // B: random, modest range
         std::vector<float> B_f32(K * N);
         for (size_t i = 0; i < B_f32.size(); ++i)
             B_f32[i] = (float)(rand() % 100) / 50.0f - 1.0f;
 
-        // Pack A to Q4_1
         int blocks_per_row = K / block_k;
         int block_bytes    = (int)(sizeof(float) * 2 + block_k / 2);
         std::vector<unsigned char> A_q4(M * blocks_per_row * block_bytes);
@@ -92,48 +106,28 @@ protected:
                 pack_q4_1(&A_f32[r * K + b * block_k], block_k, block_k,
                           &A_q4[r * blocks_per_row * block_bytes + b * block_bytes]);
 
-        // OCL
-        std::vector<float> C_ocl(M * N, 0.0f);
-        launch_gemm_q4_1_v0(A_q4.data(), B_f32.data(), C_ocl.data(),
-                            M, N, K, block_k, alpha, beta);
-
-        // CPU reference
         std::vector<float> C_cpu(M * N, 0.0f);
         gemm_q4_ref(A_q4.data(), B_f32.data(), C_cpu.data(),
                     M, N, K, block_k, alpha, beta);
 
-        expect_near(C_ocl, C_cpu, eps);
+        for (auto& [name, func] : kVariants) {
+            SCOPED_TRACE(name);
+            std::vector<float> C_ocl(M * N, 0.0f);
+            func(A_q4.data(), B_f32.data(), C_ocl.data(),
+                 M, N, K, block_k, alpha, beta);
+            expect_near(C_ocl, C_cpu, eps);
+        }
     }
 };
 
 // ===========================================================================
-// Test cases
+// Test cases  —  each runs against ALL registered variant kernels
 // ===========================================================================
 
-TEST_F(GemmQ4Test, TinySquare) {
-    run_test(/*M=*/8, /*N=*/8, /*K=*/64, /*block_k=*/32);
-}
-
-TEST_F(GemmQ4Test, Small) {
-    run_test(16, 16, 128, 32);
-}
-
-TEST_F(GemmQ4Test, Medium) {
-    run_test(32, 32, 256, 32);
-}
-
-TEST_F(GemmQ4Test, RectM) {
-    run_test(64, 16, 128, 32);
-}
-
-TEST_F(GemmQ4Test, RectN) {
-    run_test(16, 64, 128, 32);
-}
-
-TEST_F(GemmQ4Test, LargeK) {
-    run_test(16, 16, 512, 32);
-}
-
-TEST_F(GemmQ4Test, AlphaBeta) {
-    run_test(16, 16, 128, 32, /*alpha=*/2.0f, /*beta=*/0.5f);
-}
+TEST_F(GemmQ4Test, TinySquare)   { run_case(8,  8,  64); }
+TEST_F(GemmQ4Test, Small)        { run_case(16, 16, 128); }
+TEST_F(GemmQ4Test, Medium)       { run_case(32, 32, 256); }
+TEST_F(GemmQ4Test, RectM)        { run_case(64, 16, 128); }
+TEST_F(GemmQ4Test, RectN)        { run_case(16, 64, 128); }
+TEST_F(GemmQ4Test, LargeK)       { run_case(16, 16, 512); }
+TEST_F(GemmQ4Test, AlphaBeta)    { run_case(16, 16, 128, 32, 2.0f, 0.5f); }
