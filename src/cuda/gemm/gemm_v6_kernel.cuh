@@ -50,30 +50,25 @@ __global__ void gemm_v6_kernel(const float* __restrict__ A,
     b_pred[i] = b_col[i] < N;
   }
 
-  float acc[TM * TN];
-  memset(acc, 0, sizeof(float) * TM * TN);
+  float acc[TM * TN] = {};
 
   for (int k = 0; k < K; k += BK) {
-#pragma unroll
-    for (int off = 0; off < BK; off += blockSizeX) {
-      int a_col = k + off + tx;
-      bool a_pred_col = a_col < K;
-#pragma unroll
-      for (int i = 0; i < TM; ++i) {
-        sa(sa_row[i], tx + off) =
-            a_pred_col && a_pred[i] ? A(a_row[i], a_col) : 0.0f;
-      }
+    int a_col = k + tx;
+    bool a_pred_col = a_col < K;
+    for (int i = 0; i < TM; ++i) {
+      sa(sa_row[i], tx) = a_pred_col && a_pred[i] ? A(a_row[i], a_col) : 0.0f;
     }
 
 #pragma unroll
     for (int off = 0; off < BK; off += blockSizeY) {
-      int b_row = k + ty + off;
-      bool b_pred_row = b_row < K;
+      if (ty + off < BK) {
+        int b_row = k + ty + off;
 #pragma unroll
-      for (int i = 0; i < TN; ++i) {
-        // reduce bank conflicts!
-        sb(ty + off, i * blockDim.x + tx) =
-            b_pred_row && b_pred[i] ? B(b_row, b_col[i]) : 0.0f;
+        for (int i = 0; i < TN; ++i) {
+          // reduce bank conflicts!
+          sb(ty + off, i * blockDim.x + tx) =
+              b_row < K && b_pred[i] ? B(b_row, b_col[i]) : 0.0f;
+        }
       }
     }
     __syncthreads();
@@ -84,8 +79,7 @@ __global__ void gemm_v6_kernel(const float* __restrict__ A,
         float a_val = sa(sa_row[i], ik);
 #pragma unroll
         for (int j = 0; j < TN; ++j) {
-          float b_val = sb(ik, j * blockDim.x + tx);
-          acc(i, j) += a_val * b_val;
+          acc(i, j) += a_val * sb(ik, j * blockDim.x + tx);
         }
       }
     }

@@ -234,14 +234,14 @@ void gemm_v6(const float* a, const float* b, float* c, int M, int N, int K) {
   CHECK_CUDA(
       cudaMemcpy(dev_b, b, K * N * sizeof(float), cudaMemcpyHostToDevice));
 
-  constexpr int BM = 256;
+  constexpr int BM = 128;
   constexpr int BN = 128;
   constexpr int BK = 32;
   constexpr int TM = 8;
-  constexpr int TN = 8;
+  constexpr int TN = 4;
 
-  constexpr int kThreadCountX = 16;
-  constexpr int kThreadCountY = 32;
+  constexpr int kThreadCountX = 32;
+  constexpr int kThreadCountY = 16;
 
   dim3 block(kThreadCountX, kThreadCountY);
   dim3 grid((N + (kThreadCountX * TN) - 1) / (kThreadCountX * TN),

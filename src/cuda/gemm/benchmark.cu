@@ -84,8 +84,8 @@ static void launch_v5(const float* da, const float* db, float* dc, int M, int N,
 
 static void launch_v6(const float* da, const float* db, float* dc, int M, int N,
                       int K) {
-  constexpr int BM = 256, BN = 128, BK = 32, TM = 8, TN = 8;
-  constexpr int TX = 16, TY = 32;
+  constexpr int BM = 128, BN = 128, BK = 32, TM = 8, TN = 4;
+  constexpr int TX = 32, TY = 16;
   int lda = K, ldb = N, ldc = N;
   dim3 block(TX, TY);
   dim3 grid((N + TX * TN - 1) / (TX * TN), (M + TY * TM - 1) / (TY * TM));
@@ -129,10 +129,10 @@ struct KernelEntry {
   void (*launch)(const float*, const float*, float*, int, int, int);
 };
 
-static const KernelEntry kKernels[] = {{"v0", launch_v0}, {"v1", launch_v1},
-                                       {"v2", launch_v2}, {"v3", launch_v3},
-                                       {"v4", launch_v4}, {"v5", launch_v5},
-                                       {"v6", launch_v6}};
+static const KernelEntry kKernels[] = {
+    {"v0", launch_v0}, {"v1", launch_v1}, {"v2", launch_v2}, {"v3", launch_v3},
+    {"v4", launch_v4}, {"v5", launch_v5}, {"v6", launch_v6},
+};
 
 static bool enabled(const KernelEntry& e, int argc, char** argv) {
   if (argc <= 1)
