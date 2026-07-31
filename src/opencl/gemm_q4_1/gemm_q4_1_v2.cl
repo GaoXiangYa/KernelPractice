@@ -1,4 +1,5 @@
 #define BLOCK_K 32
+#define BLOCK_K_HALF 16
 #define BM 128
 #define BN 32
 #define BK BLOCK_K
@@ -9,7 +10,7 @@
 #define B(i, j) B[(i) * N + j]
 #define C(i, j) C[(i) * N + j]
 
-#define sa(i, j) sa[(i) * BK + j]
+#define sa(i, j) sa[(i) * BLOCK_K_HALF + j]
 #define sb(i, j) sb[(i) * BN + j]
 #define acc(i, j) acc[(i) * TN + j]
 
@@ -18,6 +19,12 @@ inline void deq_q4_1_block(__global const uchar* qs, __local float* dest) {
         uchar packed = qs[i];
         dest[2 * i + 0] = (float)(packed & 0x0F);
         dest[2 * i + 1] = (float)(packed >> 4);
+    }
+}
+
+inline void load_tiled(__global const uchar* qs, __local uchar* dest) {
+    for (int i = 0; i < BLOCK_K_HALF; ++ i) {
+        dest[i] = qs[i];
     }
 }
 
@@ -53,7 +60,7 @@ __kernel void gemm_q4_1_v2_kernel(
     const int block_size = (sizeof(float) << 1) + (BLOCK_K >> 1);
     int row_stride = (K >> 5) * block_size;
     int row_offset[4] = {gy[0] * row_stride, gy[1] * row_stride, gy[2] * row_stride, gy[3] * row_stride};
-    __local float sa[BM * BK];
+    __local uchar sa[BM * BLOCK_K_HALF];
     __local float sb[BK * BN];
     float d_frag[TM];
     float m_frag[TM];
@@ -71,18 +78,15 @@ __kernel void gemm_q4_1_v2_kernel(
                 d_frag[i] = d;
                 m_frag[i] = m;
                 __global uchar* q = (__global uchar*)tile_a_block + sizeof(float) + sizeof(float);
-                deq_q4_1_block(q, sa + ly[i] * BK);
+                load_tiled(q, sa + ly[i] * BLOCK_K_HALF);
             }
         }
 
-        #pragma unroll
-        for (int i = 0; i < TM; ++ i) {
-            const int b_row = k + ly[i];
-            if (b_row < K) {
-                #pragma unroll
-                for (int j = 0; j < TN; ++ j) {
-                    sb(ly[i], lx[j]) = gx_pred[j] ? B(b_row, gx[j]) : 0.0f;
-                }
+        int b_k   = get_local_id(1);
+        int b_row = k + b_k;
+        if (b_row < K) {
+            for (int j = 0; j < TN; ++j) {
+                sb(b_k, lx[j]) = gx_pred[j] ? B(b_row, gx[j]) : 0.0f;
             }
         }
 
@@ -93,7 +97,8 @@ __kernel void gemm_q4_1_v2_kernel(
         for (int ik = 0; ik < BK; ++ ik) {
             #pragma unroll
             for (int i = 0; i < TM; ++ i) {
-               float val_a = sa(ly[i], ik);
+                uchar packed = sa(ly[i], (ik >> 1));
+                float val_a = (float)((ik & 1) ? (packed >> 4) : (packed & 0x0F));
             #pragma unroll
                 for (int j = 0; j < TN; ++ j) {
                     float val_b = sb(ik, lx[j]);

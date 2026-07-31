@@ -19,3 +19,6 @@ void launch_gemm_q4_1_v1(const unsigned char* A, const float* B, float* C,
 void launch_gemm_q4_1_v2(const unsigned char* A, const float* B, float* C,
                          int M, int N, int K, int block_k, float alpha = 1.0f,
                          float beta = 0.0f);
+void launch_gemm_q4_1_v3(const unsigned char* A, const float* B, float* C,
+                         int M, int N, int K, int block_k, float alpha = 1.0f,
+                         float beta = 0.0f);

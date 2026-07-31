@@ -44,6 +44,7 @@ static const Variant kVariants[] = {
     {"v0", launch_gemm_q4_1_v0},
     {"v1", launch_gemm_q4_1_v1},
     {"v2", launch_gemm_q4_1_v2},   // future
+    {"v3", launch_gemm_q4_1_v3},   // future
 };
 
 // ===========================================================================
