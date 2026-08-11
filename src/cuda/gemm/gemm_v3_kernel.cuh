@@ -79,3 +79,5 @@ __global__ void gemm_v3_kernel(const float* __restrict__ A,
     GEMM_C(c_row.w, c_col) = acc.w;
   }
 }
+#undef sa
+#undef sb

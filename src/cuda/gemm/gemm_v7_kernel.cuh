@@ -103,3 +103,9 @@ __global__ void gemm_v7_kernel(const float* __restrict__ A,
     }
   }
 }
+#undef sa
+#undef sb
+#undef acc
+#undef A
+#undef B
+#undef C

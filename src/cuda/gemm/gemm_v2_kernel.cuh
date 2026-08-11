@@ -71,3 +71,7 @@ __global__ void gemm_v2_kernel(const float* __restrict__ A,
     }
   }
 }
+#undef sa
+#undef sb
+#undef MICRO_SIZE
+#undef MICRO_BIT
