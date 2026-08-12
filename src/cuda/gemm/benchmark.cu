@@ -9,6 +9,7 @@
 #include "gemm_v6_kernel.cuh"
 #include "gemm_v7_kernel.cuh"
 #include "gemm_v8_kernel.cuh"
+#include "gemm_v9_kernel.cuh"
 #include "util.h"
 
 #include <cuda_runtime.h>
@@ -115,6 +116,16 @@ static void launch_v8(const float* da, const float* db, float* dc, int M, int N,
             (M + V8::BLOCK_TILE_M - 1) / V8::BLOCK_TILE_M);
   gemm_v8_kernel<V8><<<grid, block>>>(da, db, dc, M, N, K, lda, ldb, ldc);
 }
+
+static void launch_v9(const float* da, const float* db, float* dc, int M, int N,
+                      int K) {
+  using V9 = GemmConfig<128, 128, 32, 32, 8, 4>;
+  int lda = K, ldb = N, ldc = N;
+  dim3 block(V9::THREADS);
+  dim3 grid((N + V9::BLOCK_TILE_N - 1) / V9::BLOCK_TILE_N,
+            (M + V9::BLOCK_TILE_M - 1) / V9::BLOCK_TILE_M);
+  v9::gemm_v9_kernel<V9><<<grid, block>>>(da, db, dc, M, N, K, lda, ldb, ldc);
+}
 // ---- timing helper ----
 
 static double
@@ -156,7 +167,7 @@ static const KernelEntry kKernels[] = {{"v0", launch_v0}, {"v1", launch_v1},
                                        {"v2", launch_v2}, {"v3", launch_v3},
                                        {"v4", launch_v4}, {"v5", launch_v5},
                                        {"v6", launch_v6}, {"v7", launch_v7},
-                                       {"v8", launch_v8}};
+                                       {"v8", launch_v8}, {"v9", launch_v9}};
 
 static bool enabled(const KernelEntry& e, int argc, char** argv) {
   if (argc <= 1)

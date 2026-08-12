@@ -102,6 +102,12 @@ GEMM_TEST(gemm_v8, v8_square_medium, 256, 256, 256)
 GEMM_TEST(gemm_v8, v8_rect, 1024, 256, 128)
 GEMM_TEST(gemm_v8, v8_skinny, 1024, 16, 256)
 
+// v9
+GEMM_TEST(gemm_v9, v9_square_small, 64, 64, 64)
+GEMM_TEST(gemm_v9, v9_square_medium, 256, 256, 256)
+GEMM_TEST(gemm_v9, v9_rect, 1024, 256, 128)
+GEMM_TEST(gemm_v9, v9_skinny, 1024, 16, 256)
+
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
