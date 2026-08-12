@@ -15,7 +15,7 @@ __device__ __forceinline__ void
 load_A(float* __restrict__ As, const float* __restrict__ A,
        const WarpTile<Config>& warp_tile, int M, int K, int lda, int k) {
   constexpr int kRowsPerWarp = Config::BLOCK_TILE_M / Config::WARPS;  // 8
-  const int lane_id = warp_tile.lane_id;      // 0..31 = BK
+  const int lane_id = warp_tile.lane_id;  // 0..31 = BK
   const int gk = k + lane_id;
   const bool k_ok = (gk < K);
 
@@ -39,25 +39,27 @@ load_B(float* __restrict__ Bs, const float* __restrict__ B,
 
 #pragma unroll
   for (int i = 0; i < kRowsPerWarpM; ++i) {
-    const int k_row = warp_tile.warp_m * kRowsPerWarpM + i;  // 0..BK-1
-    const int block_col = warp_tile.warp_n * Config::WARP_TILE_N + lane_id;  // 0..BN-1
+    const int block_row = warp_tile.warp_m * kRowsPerWarpM + i;  // 0..BK-1
+    const int block_col =
+        warp_tile.warp_n * Config::WARP_TILE_N + lane_id;  // 0..BN-1
     const int global_col = warp_tile.global_col + lane_id;
-    const int gk = k + k_row;
-    Bs[k_row * Config::BLOCK_TILE_N + block_col] =
+    const int gk = k + block_row;
+    Bs[block_row * Config::BLOCK_TILE_N + block_col] =
         (gk < K && global_col < N) ? B[gk * ldb + global_col] : 0.0f;
   }
 }
 
-// ---- mma: av = As[ik][thread 8 rows] (2×float4), bv = Bs[ik][thread 4 cols] ----
+// ---- mma: av = As[ik][thread 8 rows] (2×float4), bv = Bs[ik][thread 4 cols]
+// ----
 template <class Config>
 __device__ __forceinline__ void
 mma(const float* __restrict__ As, const float* __restrict__ Bs,
     const WarpTile<Config>& warp_tile, const ThreadTile<Config>& thread_tile,
     RegisterTile<float, Config::THREAD_TILE_M, Config::THREAD_TILE_N>& acc) {
-  const int a_row0 = warp_tile.warp_m * Config::WARP_TILE_M
-                   + thread_tile.thread_m * Config::THREAD_TILE_M;
-  const int b_col0 = warp_tile.warp_n * Config::WARP_TILE_N
-                   + thread_tile.thread_n * Config::THREAD_TILE_N;
+  const int a_row0 = warp_tile.warp_m * Config::WARP_TILE_M +
+                     thread_tile.thread_m * Config::THREAD_TILE_M;
+  const int b_col0 = warp_tile.warp_n * Config::WARP_TILE_N +
+                     thread_tile.thread_n * Config::THREAD_TILE_N;
 
 #pragma unroll
   for (int ik = 0; ik < Config::BLOCK_TILE_K; ++ik) {
