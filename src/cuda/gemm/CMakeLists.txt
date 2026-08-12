@@ -11,4 +11,4 @@ if(USE_TORCH)
 endif()
 
 add_executable(gemm_benchmark ${CMAKE_CURRENT_SOURCE_DIR}/benchmark.cu)
-target_link_libraries(gemm_benchmark PRIVATE gemm_cuda)
+target_link_libraries(gemm_benchmark PRIVATE gemm_cuda CUDA::cublas)

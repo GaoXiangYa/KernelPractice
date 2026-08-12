@@ -1,4 +1,5 @@
 #include "gemm_v0_kernel.cuh"
+#include "gemm_v10_kernel.cuh"
 #include "gemm_v1_kernel.cuh"
 #include "gemm_v2_kernel.cuh"
 #include "gemm_v3_kernel.cuh"
@@ -318,7 +319,7 @@ void gemm_v8(const float* a, const float* b, float* c, int M, int N, int K) {
   CHECK_CUDA(
       cudaMemcpy(dev_b, b, K * N * sizeof(float), cudaMemcpyHostToDevice));
 
-  using V8 = GemmConfig<128, 128, 32, 32, 8, 4>;
+  using V8 = GemmConfig<128, 128, 32, 32, 32, 8, 4>;
   dim3 block(V8::THREADS);
   dim3 grid((N + V8::BLOCK_TILE_N - 1) / V8::BLOCK_TILE_N,
             (M + V8::BLOCK_TILE_M - 1) / V8::BLOCK_TILE_M);
@@ -347,12 +348,50 @@ void gemm_v9(const float* a, const float* b, float* c, int M, int N, int K) {
   CHECK_CUDA(
       cudaMemcpy(dev_b, b, K * N * sizeof(float), cudaMemcpyHostToDevice));
 
-  using V9 = GemmConfig<128, 128, 32, 32, 8, 4>;
+  using V9 = GemmConfig<128, 128, 32, 32, 32, 8, 4>;
   dim3 block(V9::THREADS);
   dim3 grid((N + V9::BLOCK_TILE_N - 1) / V9::BLOCK_TILE_N,
             (M + V9::BLOCK_TILE_M - 1) / V9::BLOCK_TILE_M);
   v9::gemm_v9_kernel<V9>
       <<<grid, block>>>(dev_a, dev_b, dev_c, M, N, K, lda, ldb, ldc);
+  CHECK_CUDA(cudaGetLastError());
+
+  CHECK_CUDA(
+      cudaMemcpy(c, dev_c, M * N * sizeof(float), cudaMemcpyDeviceToHost));
+
+  CHECK_CUDA(cudaFree(dev_a));
+  CHECK_CUDA(cudaFree(dev_b));
+  CHECK_CUDA(cudaFree(dev_c));
+}
+
+void gemm_v10(const float* a, const float* b, float* c, int M, int N, int K) {
+  int lda = K, ldb = N, ldc = N;
+
+  float *dev_a = nullptr, *dev_b = nullptr, *dev_c = nullptr;
+  CHECK_CUDA(cudaMalloc(&dev_a, M * K * sizeof(float)));
+  CHECK_CUDA(cudaMalloc(&dev_b, K * N * sizeof(float)));
+  CHECK_CUDA(cudaMalloc(&dev_c, M * N * sizeof(float)));
+
+  CHECK_CUDA(
+      cudaMemcpy(dev_a, a, M * K * sizeof(float), cudaMemcpyHostToDevice));
+  CHECK_CUDA(
+      cudaMemcpy(dev_b, b, K * N * sizeof(float), cudaMemcpyHostToDevice));
+
+  using V10 = GemmConfig<128, 128, 32, 32, 32, 8, 4>;
+
+  constexpr int kBufA = V10::BLOCK_TILE_K * V10::SA_STRIDE;
+  constexpr int kBufB = V10::BLOCK_TILE_K * V10::BLOCK_TILE_N;
+  constexpr int kSmemBytes = (kBufA + kBufB) * 2 * sizeof(float);
+
+  CHECK_CUDA(cudaFuncSetAttribute(v10::gemm_v10_kernel<V10>,
+                                  cudaFuncAttributeMaxDynamicSharedMemorySize,
+                                  kSmemBytes));
+
+  dim3 block(V10::THREADS);
+  dim3 grid((N + V10::BLOCK_TILE_N - 1) / V10::BLOCK_TILE_N,
+            (M + V10::BLOCK_TILE_M - 1) / V10::BLOCK_TILE_M);
+  v10::gemm_v10_kernel<V10><<<grid, block, kSmemBytes>>>(dev_a, dev_b, dev_c, M,
+                                                         N, K, lda, ldb, ldc);
   CHECK_CUDA(cudaGetLastError());
 
   CHECK_CUDA(

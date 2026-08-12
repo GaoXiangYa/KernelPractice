@@ -1,6 +1,7 @@
 #include "benchmark.cuh"
 #include "gemm.cuh"
 #include "gemm_v0_kernel.cuh"
+#include "gemm_v10_kernel.cuh"
 #include "gemm_v1_kernel.cuh"
 #include "gemm_v2_kernel.cuh"
 #include "gemm_v3_kernel.cuh"
@@ -12,6 +13,7 @@
 #include "gemm_v9_kernel.cuh"
 #include "util.h"
 
+#include <cublas_v2.h>
 #include <cuda_runtime.h>
 #include <cstdio>
 #include <cstdlib>
@@ -109,7 +111,7 @@ static void launch_v7(const float* da, const float* db, float* dc, int M, int N,
 
 static void launch_v8(const float* da, const float* db, float* dc, int M, int N,
                       int K) {
-  using V8 = GemmConfig<128, 128, 32, 32, 8, 4>;
+  using V8 = GemmConfig<128, 128, 32, 32, 32, 8, 4>;
   int lda = K, ldb = N, ldc = N;
   dim3 block(V8::THREADS);
   dim3 grid((N + V8::BLOCK_TILE_N - 1) / V8::BLOCK_TILE_N,
@@ -119,12 +121,48 @@ static void launch_v8(const float* da, const float* db, float* dc, int M, int N,
 
 static void launch_v9(const float* da, const float* db, float* dc, int M, int N,
                       int K) {
-  using V9 = GemmConfig<128, 128, 32, 32, 8, 4>;
+  using V9 = GemmConfig<128, 128, 32, 32, 32, 8, 4>;
   int lda = K, ldb = N, ldc = N;
   dim3 block(V9::THREADS);
   dim3 grid((N + V9::BLOCK_TILE_N - 1) / V9::BLOCK_TILE_N,
             (M + V9::BLOCK_TILE_M - 1) / V9::BLOCK_TILE_M);
   v9::gemm_v9_kernel<V9><<<grid, block>>>(da, db, dc, M, N, K, lda, ldb, ldc);
+}
+
+static void launch_v10(const float* da, const float* db, float* dc, int M,
+                       int N, int K) {
+  using V10 = GemmConfig<128, 128, 32, 32, 32, 8, 4>;
+  int lda = K, ldb = N, ldc = N;
+  constexpr int kBufA = V10::BLOCK_TILE_K * V10::SA_STRIDE;
+  constexpr int kBufB = V10::BLOCK_TILE_K * V10::BLOCK_TILE_N;
+  constexpr int kSmemBytes = (kBufA + kBufB) * 2 * sizeof(float);
+
+  cudaFuncSetAttribute(v10::gemm_v10_kernel<V10>,
+                       cudaFuncAttributeMaxDynamicSharedMemorySize, kSmemBytes);
+
+  dim3 block(V10::THREADS);
+  dim3 grid((N + V10::BLOCK_TILE_N - 1) / V10::BLOCK_TILE_N,
+            (M + V10::BLOCK_TILE_M - 1) / V10::BLOCK_TILE_M);
+  v10::gemm_v10_kernel<V10>
+      <<<grid, block, kSmemBytes>>>(da, db, dc, M, N, K, lda, ldb, ldc);
+}
+
+// ---- cuBLAS reference ----
+static cublasHandle_t cublas_handle = nullptr;
+static cublasHandle_t get_cublas_handle() {
+  if (cublas_handle == nullptr)
+    cublasCreate(&cublas_handle);
+  return cublas_handle;
+}
+
+// Row-major C[M,N] = A[M,K] * B[K,N]
+// cuBLAS is column-major:  C^T = B^T * A^T
+//   → cublasSgemm(OP_N, OP_N, N, M, K, 1, B, N, A, K, 0, C, N)
+static void launch_cublas(const float* da, const float* db, float* dc, int M,
+                          int N, int K) {
+  const float alpha = 1.0f, beta = 0.0f;
+  cublasSgemm(get_cublas_handle(), CUBLAS_OP_N, CUBLAS_OP_N, N, M, K, &alpha,
+              db, N, da, K, &beta, dc, N);
 }
 // ---- timing helper ----
 
@@ -163,11 +201,13 @@ struct KernelEntry {
   void (*launch)(const float*, const float*, float*, int, int, int);
 };
 
-static const KernelEntry kKernels[] = {{"v0", launch_v0}, {"v1", launch_v1},
-                                       {"v2", launch_v2}, {"v3", launch_v3},
-                                       {"v4", launch_v4}, {"v5", launch_v5},
-                                       {"v6", launch_v6}, {"v7", launch_v7},
-                                       {"v8", launch_v8}, {"v9", launch_v9}};
+static const KernelEntry kKernels[] = {{"v0", launch_v0},  {"v1", launch_v1},
+                                       {"v2", launch_v2},  {"v3", launch_v3},
+                                       {"v4", launch_v4},  {"v5", launch_v5},
+                                       {"v6", launch_v6},  {"v7", launch_v7},
+                                       {"v8", launch_v8},  {"v9", launch_v9},
+                                       {"v10", launch_v10},
+                                       {"cublas", launch_cublas}};
 
 static bool enabled(const KernelEntry& e, int argc, char** argv) {
   if (argc <= 1)

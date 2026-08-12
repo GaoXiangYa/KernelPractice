@@ -2,6 +2,7 @@
 
 template <int BM,  // Block M tile
           int BN,  // Block N tile
+          int BK,  // Block K tile
           int WM,  // Warp M tile
           int WN,  // Warp N tile
           int TM,  // Thread M tile
@@ -10,7 +11,7 @@ template <int BM,  // Block M tile
 struct GemmConfig {
   static constexpr int BLOCK_TILE_M = BM;
   static constexpr int BLOCK_TILE_N = BN;
-  static constexpr int BLOCK_TILE_K = 32;
+  static constexpr int BLOCK_TILE_K = BK;
 
   static constexpr int WARP_TILE_M = WM;
   static constexpr int WARP_TILE_N = WN;
