@@ -152,24 +152,11 @@ store_C(float* __restrict__ C, const WarpTile<Config>& warp_tile,
   }
 }
 
-// __launch_bounds__ toggle for the config sweep: define V11_USE_LAUNCH_BOUNDS
-// to 0 before including this header to disable it (default 1 = enabled).
-#ifndef V11_USE_LAUNCH_BOUNDS
-#define V11_USE_LAUNCH_BOUNDS 1
-#endif
-
-#if V11_USE_LAUNCH_BOUNDS
-#define V11_LAUNCH_BOUNDS __launch_bounds__(Config::THREADS, 2)
-#else
-#define V11_LAUNCH_BOUNDS
-#endif
-
 template <class Config, bool kAligned>
-__global__ void V11_LAUNCH_BOUNDS gemm_v11_kernel(const float* __restrict__ A,
-                                                  const float* __restrict__ B,
-                                                  float* __restrict__ C, int M,
-                                                  int N, int K, int lda,
-                                                  int ldb, int ldc) {
+__global__ void gemm_v11_kernel(const float* __restrict__ A,
+                                const float* __restrict__ B,
+                                float* __restrict__ C, int M, int N, int K,
+                                int lda, int ldb, int ldc) {
   WarpTile<Config> warp_tile;
   ThreadTile<Config> thread_tile = make_thread_tile(warp_tile);
   RegisterTile<float, Config::THREAD_TILE_M, Config::THREAD_TILE_N> acc;
