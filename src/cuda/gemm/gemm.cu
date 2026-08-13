@@ -1,5 +1,8 @@
 #include "gemm_v0_kernel.cuh"
 #include "gemm_v10_kernel.cuh"
+#define V11_USE_LAUNCH_BOUNDS 0
+#include "gemm_v11_kernel.cuh"
+#include "gemm_v12_kernel.cuh"
 #include "gemm_v1_kernel.cuh"
 #include "gemm_v2_kernel.cuh"
 #include "gemm_v3_kernel.cuh"
@@ -392,6 +395,108 @@ void gemm_v10(const float* a, const float* b, float* c, int M, int N, int K) {
             (M + V10::BLOCK_TILE_M - 1) / V10::BLOCK_TILE_M);
   v10::gemm_v10_kernel<V10><<<grid, block, kSmemBytes>>>(dev_a, dev_b, dev_c, M,
                                                          N, K, lda, ldb, ldc);
+  CHECK_CUDA(cudaGetLastError());
+
+  CHECK_CUDA(
+      cudaMemcpy(c, dev_c, M * N * sizeof(float), cudaMemcpyDeviceToHost));
+
+  CHECK_CUDA(cudaFree(dev_a));
+  CHECK_CUDA(cudaFree(dev_b));
+  CHECK_CUDA(cudaFree(dev_c));
+}
+
+void gemm_v11(const float* a, const float* b, float* c, int M, int N, int K) {
+  int lda = K, ldb = N, ldc = N;
+
+  float *dev_a = nullptr, *dev_b = nullptr, *dev_c = nullptr;
+  CHECK_CUDA(cudaMalloc(&dev_a, M * K * sizeof(float)));
+  CHECK_CUDA(cudaMalloc(&dev_b, K * N * sizeof(float)));
+  CHECK_CUDA(cudaMalloc(&dev_c, M * N * sizeof(float)));
+
+  CHECK_CUDA(
+      cudaMemcpy(dev_a, a, M * K * sizeof(float), cudaMemcpyHostToDevice));
+  CHECK_CUDA(
+      cudaMemcpy(dev_b, b, K * N * sizeof(float), cudaMemcpyHostToDevice));
+
+  using V11 = GemmConfig<128, 128, 16, 32, 32, 8, 4>;
+
+  constexpr int kBufA = V11::BLOCK_TILE_K * V11::SA_STRIDE;
+  constexpr int kBufB = V11::BLOCK_TILE_K * V11::BLOCK_TILE_N;
+  constexpr int kSmemBytes = (kBufA + kBufB) * 2 * sizeof(float);
+
+  CHECK_CUDA(cudaFuncSetAttribute(v11::gemm_v11_kernel<V11, true>,
+                                  cudaFuncAttributeMaxDynamicSharedMemorySize,
+                                  kSmemBytes));
+  CHECK_CUDA(cudaFuncSetAttribute(v11::gemm_v11_kernel<V11, false>,
+                                  cudaFuncAttributeMaxDynamicSharedMemorySize,
+                                  kSmemBytes));
+
+  dim3 block(V11::THREADS);
+  dim3 grid((N + V11::BLOCK_TILE_N - 1) / V11::BLOCK_TILE_N,
+            (M + V11::BLOCK_TILE_M - 1) / V11::BLOCK_TILE_M);
+
+  const bool aligned = (M % V11::BLOCK_TILE_M == 0) &&
+                       (N % V11::BLOCK_TILE_N == 0) &&
+                       (K % V11::BLOCK_TILE_K == 0);
+  if (aligned)
+    v11::gemm_v11_kernel<V11, true>
+        <<<grid, block, kSmemBytes>>>(dev_a, dev_b, dev_c, M, N, K, lda, ldb,
+                                      ldc);
+  else
+    v11::gemm_v11_kernel<V11, false>
+        <<<grid, block, kSmemBytes>>>(dev_a, dev_b, dev_c, M, N, K, lda, ldb,
+                                      ldc);
+  CHECK_CUDA(cudaGetLastError());
+
+  CHECK_CUDA(
+      cudaMemcpy(c, dev_c, M * N * sizeof(float), cudaMemcpyDeviceToHost));
+
+  CHECK_CUDA(cudaFree(dev_a));
+  CHECK_CUDA(cudaFree(dev_b));
+  CHECK_CUDA(cudaFree(dev_c));
+}
+
+void gemm_v12(const float* a, const float* b, float* c, int M, int N, int K) {
+  int lda = K, ldb = N, ldc = N;
+
+  float *dev_a = nullptr, *dev_b = nullptr, *dev_c = nullptr;
+  CHECK_CUDA(cudaMalloc(&dev_a, M * K * sizeof(float)));
+  CHECK_CUDA(cudaMalloc(&dev_b, K * N * sizeof(float)));
+  CHECK_CUDA(cudaMalloc(&dev_c, M * N * sizeof(float)));
+
+  CHECK_CUDA(
+      cudaMemcpy(dev_a, a, M * K * sizeof(float), cudaMemcpyHostToDevice));
+  CHECK_CUDA(
+      cudaMemcpy(dev_b, b, K * N * sizeof(float), cudaMemcpyHostToDevice));
+
+  using V12 = GemmConfig<128, 128, 16, 32, 64, 8, 8>;
+
+  constexpr int kBufA = V12::BLOCK_TILE_K * V12::SA_STRIDE;
+  constexpr int kBufB = V12::BLOCK_TILE_K * V12::BLOCK_TILE_N;
+  constexpr int kSmemBytes = (kBufA + kBufB) * 2 * sizeof(float);
+
+  CHECK_CUDA(cudaFuncSetAttribute(v12::gemm_v12_kernel<V12, true>,
+                                  cudaFuncAttributeMaxDynamicSharedMemorySize,
+                                  kSmemBytes));
+  CHECK_CUDA(cudaFuncSetAttribute(v12::gemm_v12_kernel<V12, false>,
+                                  cudaFuncAttributeMaxDynamicSharedMemorySize,
+                                  kSmemBytes));
+
+  dim3 block(V12::THREADS);
+  dim3 grid((N + V12::BLOCK_TILE_N - 1) / V12::BLOCK_TILE_N,
+            (M + V12::BLOCK_TILE_M - 1) / V12::BLOCK_TILE_M);
+
+  const bool aligned = (M % V12::BLOCK_TILE_M == 0) &&
+                       (N % V12::BLOCK_TILE_N == 0) &&
+                       (K % V12::BLOCK_TILE_K == 0);
+  if (aligned)
+    v12::gemm_v12_kernel<V12, true>
+        <<<grid, block, kSmemBytes>>>(dev_a, dev_b, dev_c, M, N, K, lda, ldb,
+                                      ldc);
+  else
+    v12::gemm_v12_kernel<V12, false>
+        <<<grid, block, kSmemBytes>>>(dev_a, dev_b, dev_c, M, N, K, lda, ldb,
+                                      ldc);
   CHECK_CUDA(cudaGetLastError());
 
   CHECK_CUDA(

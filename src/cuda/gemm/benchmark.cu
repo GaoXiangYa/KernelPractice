@@ -2,6 +2,9 @@
 #include "gemm.cuh"
 #include "gemm_v0_kernel.cuh"
 #include "gemm_v10_kernel.cuh"
+#define V11_USE_LAUNCH_BOUNDS 0
+#include "gemm_v11_kernel.cuh"
+#include "gemm_v12_kernel.cuh"
 #include "gemm_v1_kernel.cuh"
 #include "gemm_v2_kernel.cuh"
 #include "gemm_v3_kernel.cuh"
@@ -147,6 +150,62 @@ static void launch_v10(const float* da, const float* db, float* dc, int M,
       <<<grid, block, kSmemBytes>>>(da, db, dc, M, N, K, lda, ldb, ldc);
 }
 
+static void launch_v11(const float* da, const float* db, float* dc, int M,
+                       int N, int K) {
+  using V11 = GemmConfig<128, 128, 16, 32, 32, 8, 4>;
+  int lda = K, ldb = N, ldc = N;
+  constexpr int kBufA = V11::BLOCK_TILE_K * V11::SA_STRIDE;
+  constexpr int kBufB = V11::BLOCK_TILE_K * V11::BLOCK_TILE_N;
+  constexpr int kSmemBytes = (kBufA + kBufB) * 2 * sizeof(float);
+
+  cudaFuncSetAttribute(v11::gemm_v11_kernel<V11, true>,
+                       cudaFuncAttributeMaxDynamicSharedMemorySize, kSmemBytes);
+  cudaFuncSetAttribute(v11::gemm_v11_kernel<V11, false>,
+                       cudaFuncAttributeMaxDynamicSharedMemorySize, kSmemBytes);
+
+  dim3 block(V11::THREADS);
+  dim3 grid((N + V11::BLOCK_TILE_N - 1) / V11::BLOCK_TILE_N,
+            (M + V11::BLOCK_TILE_M - 1) / V11::BLOCK_TILE_M);
+
+  const bool aligned = (M % V11::BLOCK_TILE_M == 0) &&
+                       (N % V11::BLOCK_TILE_N == 0) &&
+                       (K % V11::BLOCK_TILE_K == 0);
+  if (aligned)
+    v11::gemm_v11_kernel<V11, true>
+        <<<grid, block, kSmemBytes>>>(da, db, dc, M, N, K, lda, ldb, ldc);
+  else
+    v11::gemm_v11_kernel<V11, false>
+        <<<grid, block, kSmemBytes>>>(da, db, dc, M, N, K, lda, ldb, ldc);
+}
+
+static void launch_v12(const float* da, const float* db, float* dc, int M,
+                       int N, int K) {
+  using V12 = GemmConfig<128, 128, 16, 32, 64, 8, 8>;
+  int lda = K, ldb = N, ldc = N;
+  constexpr int kBufA = V12::BLOCK_TILE_K * V12::SA_STRIDE;
+  constexpr int kBufB = V12::BLOCK_TILE_K * V12::BLOCK_TILE_N;
+  constexpr int kSmemBytes = (kBufA + kBufB) * 2 * sizeof(float);
+
+  cudaFuncSetAttribute(v12::gemm_v12_kernel<V12, true>,
+                       cudaFuncAttributeMaxDynamicSharedMemorySize, kSmemBytes);
+  cudaFuncSetAttribute(v12::gemm_v12_kernel<V12, false>,
+                       cudaFuncAttributeMaxDynamicSharedMemorySize, kSmemBytes);
+
+  dim3 block(V12::THREADS);
+  dim3 grid((N + V12::BLOCK_TILE_N - 1) / V12::BLOCK_TILE_N,
+            (M + V12::BLOCK_TILE_M - 1) / V12::BLOCK_TILE_M);
+
+  const bool aligned = (M % V12::BLOCK_TILE_M == 0) &&
+                       (N % V12::BLOCK_TILE_N == 0) &&
+                       (K % V12::BLOCK_TILE_K == 0);
+  if (aligned)
+    v12::gemm_v12_kernel<V12, true>
+        <<<grid, block, kSmemBytes>>>(da, db, dc, M, N, K, lda, ldb, ldc);
+  else
+    v12::gemm_v12_kernel<V12, false>
+        <<<grid, block, kSmemBytes>>>(da, db, dc, M, N, K, lda, ldb, ldc);
+}
+
 // ---- cuBLAS reference ----
 static cublasHandle_t cublas_handle = nullptr;
 static cublasHandle_t get_cublas_handle() {
@@ -201,13 +260,12 @@ struct KernelEntry {
   void (*launch)(const float*, const float*, float*, int, int, int);
 };
 
-static const KernelEntry kKernels[] = {{"v0", launch_v0},  {"v1", launch_v1},
-                                       {"v2", launch_v2},  {"v3", launch_v3},
-                                       {"v4", launch_v4},  {"v5", launch_v5},
-                                       {"v6", launch_v6},  {"v7", launch_v7},
-                                       {"v8", launch_v8},  {"v9", launch_v9},
-                                       {"v10", launch_v10},
-                                       {"cublas", launch_cublas}};
+static const KernelEntry kKernels[] = {
+    {"v0", launch_v0}, {"v1", launch_v1},   {"v2", launch_v2},
+    {"v3", launch_v3}, {"v4", launch_v4},   {"v5", launch_v5},
+    {"v6", launch_v6}, {"v7", launch_v7},   {"v8", launch_v8},
+    {"v9", launch_v9}, {"v10", launch_v10}, {"v11", launch_v11},
+    {"v12", launch_v12}, {"cublas", launch_cublas}};
 
 static bool enabled(const KernelEntry& e, int argc, char** argv) {
   if (argc <= 1)
