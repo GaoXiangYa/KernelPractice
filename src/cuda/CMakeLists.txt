@@ -9,6 +9,7 @@ if(DEFINED ENV{CUTLASS_PATH})
 endif()
 
 add_subdirectory(gemm)
+add_subdirectory(flashattention_v1)
 add_subdirectory(reduce)
 # add_subdirectory(rmsnorm)
 # add_subdirectory(gemv)
