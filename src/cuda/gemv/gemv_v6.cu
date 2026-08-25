@@ -115,7 +115,7 @@ void benchmark_gemv_v6(std::ofstream &file, const int m, const int n) {
   }
 
   // -----------------------
-  // 2. benchmark（用 cudaEvent）
+  // 2. benchmark cudaEvent
   // -----------------------
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
@@ -134,7 +134,6 @@ void benchmark_gemv_v6(std::ofstream &file, const int m, const int n) {
 
   cudaEventElapsedTime(&time_ms, start, stop);
 
-  // 平均每次的时间（毫秒）
   time_ms /= iters;
 
   const float Flops = 2 * m * n;

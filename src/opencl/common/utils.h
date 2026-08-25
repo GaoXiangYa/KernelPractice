@@ -12,25 +12,21 @@
 #include <vector>
 
 inline std::string read_file(const std::string& path) {
-  // 打开文件
   std::ifstream ifs(path, std::ios::in | std::ios::binary);
   if (!ifs) {
     std::cerr << "Error: Could not open file " << path << std::endl;
     return "";
   }
 
-  // 获取文件的大小
   ifs.seekg(0, std::ios::end);
   std::streamsize size = ifs.tellg();
   ifs.seekg(0, std::ios::beg);
 
-  // 如果文件为空，直接返回空字符串
   if (size == 0) {
     return "";
   }
 
-  // 读取文件内容
-  std::string text(size, '\0');  // 分配足够的空间来存储文件内容
+  std::string text(size, '\0');
   if (ifs.read(&text[0], size)) {
     return text;
   } else {

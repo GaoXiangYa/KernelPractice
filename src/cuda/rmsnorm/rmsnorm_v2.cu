@@ -158,8 +158,8 @@ void rmsnorm_v2_benchmark() {
   convertToFloat(output_vec4, output.data(), input_len / 4);
   float elapsed_ms;
   cudaEventElapsedTime(&elapsed_ms, start, stop);
-  elapsed_ms /= repeat;  // 平均单次 ms
-  elapsed_ms /= 1000.0f; // 转换成秒
+  elapsed_ms /= repeat;
+  elapsed_ms /= 1000.0f;
 
   double bandwidth = bytes / elapsed_ms / 1e9;
   double gflops = flops / elapsed_ms / 1e9;

@@ -231,8 +231,8 @@ void rmsnorm_v0_benchmark() {
 
   float elapsed_ms;
   cudaEventElapsedTime(&elapsed_ms, start, stop);
-  elapsed_ms /= repeat;  // 平均单次 ms
-  elapsed_ms /= 1000.0f; // 转换成秒
+  elapsed_ms /= repeat;
+  elapsed_ms /= 1000.0f;
 
   double bytes = 5.0 * input_len * sizeof(float);
   double bandwidth = bytes / elapsed_ms / 1e9;

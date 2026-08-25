@@ -15,7 +15,6 @@ void init_random_matrix(std::vector<T> &matrix,
   std::random_device rd;
   std::mt19937 rng(rd());
 
-  // 根据类型选择分布
   if constexpr (std::is_integral<T>::value) {
     std::uniform_int_distribution<T> dist(min, max);
     for (auto &element : matrix) {

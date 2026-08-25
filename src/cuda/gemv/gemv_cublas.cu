@@ -20,7 +20,6 @@ void cublas_gemv_fp32(float *mat_a, float *vec_x, float *vec_y, const int m,
   cublasHandle_t handle;
   cublasCreate(&handle);
 
-  // cuBLAS 使用 ColumnMajor，所以我们把 RowMajor 的 A 作为转置矩阵输入
   // A: m × n (RowMajor)
   // cuBLAS: treat A^T: n × m (ColumnMajor)
   cublasSgemv(handle,

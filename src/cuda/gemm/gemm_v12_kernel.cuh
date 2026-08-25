@@ -52,8 +52,6 @@ __device__ __forceinline__ void store_A_reg(float* __restrict__ As,
     As[(k0 + j) * Config::SA_STRIDE + row] = prefA[j];
 }
 
-// ---- B：warp 覆盖 (BK/WARPS_M) 行 x WN 列，每 lane 负责一行、WN*kRows/32 个
-// float ----
 template <class Config, bool kAligned>
 __device__ __forceinline__ void
 prefetch_B_reg(float prefB[], const float* __restrict__ B,
