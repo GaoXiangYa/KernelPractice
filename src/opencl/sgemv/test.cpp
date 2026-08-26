@@ -1,6 +1,6 @@
+#include <vector>
 #include "sgemv.h"
 #include "test_utils.h"
-#include <vector>
 
 // CPU reference: y[M] = alpha * A[M,N] * x[N] + beta * y[M]
 static void sgemv_ref(const float* A, const float* x, float* y, int M, int N,
@@ -19,9 +19,9 @@ using SgemvFunc = void (*)(const float*, const float*, float*, int, int, float,
 
 struct SgemvVariant {
   const char* name;
-  SgemvFunc  func;
-  float      alpha = 1.0f;
-  float      beta  = 0.0f;
+  SgemvFunc func;
+  float alpha = 1.0f;
+  float beta = 0.0f;
 };
 
 class SgemvTest : public ::testing::TestWithParam<SgemvVariant> {
@@ -46,7 +46,9 @@ TEST_P(SgemvTest, Correctness) {
 
 INSTANTIATE_TEST_SUITE_P(
     Variants, SgemvTest,
-    ::testing::Values(
-        SgemvVariant{"v0", sgemv_v0, 1.0f, 0.0f},
-        SgemvVariant{"v0_beta", sgemv_v0, 0.5f, 0.5f}),
+    ::testing::Values(SgemvVariant{"v0", sgemv_v0, 1.0f, 0.0f},
+                      SgemvVariant{"v0_beta", sgemv_v0, 0.5f, 0.5f},
+                      SgemvVariant{"v1", sgemv_v1, 1.0f, 0.0f},
+                      SgemvVariant{"v1_beta", sgemv_v1, 0.5f, 0.5f}
+                      ),
     [](const auto& info) { return info.param.name; });
