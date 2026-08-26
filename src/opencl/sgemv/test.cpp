@@ -50,7 +50,9 @@ INSTANTIATE_TEST_SUITE_P(
                       SgemvVariant{"v0_beta", sgemv_v0, 0.5f, 0.5f},
                       SgemvVariant{"v1", sgemv_v1, 1.0f, 0.0f},
                       SgemvVariant{"v1_beta", sgemv_v1, 0.5f, 0.5f},
-                      SgemvVariant{"v2", sgemv_v1, 1.0f, 0.0f},
-                      SgemvVariant{"v2_beta", sgemv_v1, 0.5f, 0.5f}
+                      SgemvVariant{"v2", sgemv_v2, 1.0f, 0.0f},
+                      SgemvVariant{"v2_beta", sgemv_v2, 0.5f, 0.5f},
+                      SgemvVariant{"v3", sgemv_v3, 1.0f, 0.0f},
+                      SgemvVariant{"v3_beta", sgemv_v3, 0.5f, 0.5f}
                       ),
     [](const auto& info) { return info.param.name; });
