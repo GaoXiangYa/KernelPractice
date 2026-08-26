@@ -4,6 +4,7 @@
 #include <CL/cl2.hpp>
 #include <CL/opencl.hpp>
 
+#include <cstddef>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -69,6 +70,8 @@ public:
 
     // Blocking read from a device buffer back to host.
     void read_buffer(const cl::Buffer& buf, size_t bytes, void* dst);
+
+    size_t get_subgroup_size(const cl::Kernel& kernel, const cl::NDRange& local_work_size);
 
 private:
     DeviceManager();

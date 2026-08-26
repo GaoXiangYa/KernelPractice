@@ -1,5 +1,7 @@
 #include "device.h"
 
+#include <CL/opencl.hpp>
+#include <cstddef>
 #include <iostream>
 #include <vector>
 
@@ -46,8 +48,10 @@ void DeviceManager::launch(const cl::Kernel& kernel, const cl::NDRange& global,
   std::cout << std::format("Kernel {} execution time: {} ms\n", label, ms);
 }
 
-double DeviceManager::launch_profiled(const cl::Kernel& kernel, const cl::NDRange& global,
-                           const cl::NDRange& local, const std::string& label) {
+double DeviceManager::launch_profiled(const cl::Kernel& kernel,
+                                      const cl::NDRange& global,
+                                      const cl::NDRange& local,
+                                      const std::string& label) {
   cl::Event event;
   queue_.enqueueNDRangeKernel(kernel, cl::NullRange, global, local, nullptr,
                               &event);
@@ -69,4 +73,15 @@ void DeviceManager::launch_silent(const cl::Kernel& kernel,
 void DeviceManager::read_buffer(const cl::Buffer& buf, size_t bytes,
                                 void* dst) {
   queue_.enqueueReadBuffer(buf, CL_TRUE, 0, bytes, dst);
+}
+
+size_t DeviceManager::get_subgroup_size(const cl::Kernel& kernel,
+                                        const cl::NDRange& local_work_size) {
+  size_t max_sub_group_size = 0;
+  cl_int err = clGetKernelSubGroupInfo(kernel.get(), this->device_.get(),
+                                       CL_KERNEL_MAX_SUB_GROUP_SIZE_FOR_NDRANGE,
+                                       sizeof(local_work_size), local_work_size,
+                                       sizeof(max_sub_group_size),
+                                       &max_sub_group_size, NULL);
+  return max_sub_group_size;
 }
