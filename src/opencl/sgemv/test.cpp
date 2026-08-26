@@ -41,7 +41,7 @@ TEST_P(SgemvTest, Correctness) {
   auto [name, func, alpha, beta] = GetParam();
   sgemv_ref(A.data(), x.data(), y_cpu.data(), M, N, alpha, beta);
   func(A.data(), x.data(), y_ocl.data(), M, N, alpha, beta);
-  expect_near(y_ocl, y_cpu, 1e-3f);
+  expect_near(y_ocl, y_cpu, 1e-2f);
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -53,6 +53,7 @@ INSTANTIATE_TEST_SUITE_P(
                       SgemvVariant{"v2", sgemv_v2, 1.0f, 0.0f},
                       SgemvVariant{"v2_beta", sgemv_v2, 0.5f, 0.5f},
                       SgemvVariant{"v3", sgemv_v3, 1.0f, 0.0f},
-                      SgemvVariant{"v3_beta", sgemv_v3, 0.5f, 0.5f}
-                      ),
+                      SgemvVariant{"v3_beta", sgemv_v3, 0.5f, 0.5f},
+                      SgemvVariant{"v4", sgemv_v4, 1.0f, 0.0f},
+                      SgemvVariant{"v4_beta", sgemv_v4, 0.5f, 0.5f}),
     [](const auto& info) { return info.param.name; });

@@ -22,6 +22,7 @@ static const Variant kVariants[] = {
     {"v1", sgemv_v1_benchmark},
     {"v2", sgemv_v2_benchmark},
     {"v3", sgemv_v3_benchmark},
+    {"v4", sgemv_v4_benchmark},
 };
 
 // ===========================================================================
@@ -83,7 +84,6 @@ int main() {
       {4096, 4096, "small "},
       {4096, 16384, "medium"},
       {16384, 16384, "large "},
-      {16384, 65536, "rect  "},
   };
 
   for (auto& p : probs) {

@@ -19,3 +19,7 @@ void sgemv_v3(const float* A, const float* x, float* y, int M, int N,
               float alpha = 1.0f, float beta = 0.0f);
 double sgemv_v3_benchmark(const float* A, const float* x, float* y, int M,
                           int N, float alpha = 1.0f, float beta = 0.0f);
+void sgemv_v4(const float* A, const float* x, float* y, int M, int N,
+              float alpha = 1.0f, float beta = 0.0f);
+double sgemv_v4_benchmark(const float* A, const float* x, float* y, int M,
+                          int N, float alpha = 1.0f, float beta = 0.0f);
