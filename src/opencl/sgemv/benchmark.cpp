@@ -18,8 +18,9 @@ struct Variant {
 };
 
 static const Variant kVariants[] = {
-    {"v0", sgemv_v0_benchmark},
+    // {"v0", sgemv_v0_benchmark},
     {"v1", sgemv_v1_benchmark},
+    {"v2", sgemv_v2_benchmark},
 };
 
 // ===========================================================================

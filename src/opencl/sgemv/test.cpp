@@ -49,6 +49,8 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(SgemvVariant{"v0", sgemv_v0, 1.0f, 0.0f},
                       SgemvVariant{"v0_beta", sgemv_v0, 0.5f, 0.5f},
                       SgemvVariant{"v1", sgemv_v1, 1.0f, 0.0f},
-                      SgemvVariant{"v1_beta", sgemv_v1, 0.5f, 0.5f}
+                      SgemvVariant{"v1_beta", sgemv_v1, 0.5f, 0.5f},
+                      SgemvVariant{"v2", sgemv_v1, 1.0f, 0.0f},
+                      SgemvVariant{"v2_beta", sgemv_v1, 0.5f, 0.5f}
                       ),
     [](const auto& info) { return info.param.name; });
