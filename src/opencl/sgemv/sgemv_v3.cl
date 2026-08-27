@@ -19,7 +19,7 @@ kernel void sgemv_v3_kernel(global const float* A, __constant float4* x,
 
   float sum = 0.0f;
   for (int i = lane_id; i < len; i += warp_size) {
-    float4 vec_a = *(float4*)(&A[g_row * N + (i << 2)]);
+    float4 vec_a = vload4(0, &A[g_row * N + (i << 2)]);
     float4 vec_x = x[i];
     sum += (vec_a.x * vec_x.x + vec_a.y * vec_x.y + vec_a.z * vec_x.z + vec_a.w * vec_x.w);
   }
