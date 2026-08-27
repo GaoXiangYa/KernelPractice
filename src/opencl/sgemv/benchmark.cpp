@@ -24,6 +24,7 @@ static const Variant kVariants[] = {
     {"v3", sgemv_v3_benchmark},
     {"v4", sgemv_v4_benchmark},
     {"v5", sgemv_v5_benchmark},
+    {"v6", sgemv_v6_benchmark},
 };
 
 // ===========================================================================

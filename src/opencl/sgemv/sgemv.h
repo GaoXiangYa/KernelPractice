@@ -27,3 +27,7 @@ void sgemv_v5(const float* A, const float* x, float* y, int M, int N,
               float alpha = 1.0f, float beta = 0.0f);
 double sgemv_v5_benchmark(const float* A, const float* x, float* y, int M,
                           int N, float alpha = 1.0f, float beta = 0.0f);
+void sgemv_v6(const float* A, const float* x, float* y, int M, int N,
+              float alpha = 1.0f, float beta = 0.0f);
+double sgemv_v6_benchmark(const float* A, const float* x, float* y, int M,
+                          int N, float alpha = 1.0f, float beta = 0.0f);
