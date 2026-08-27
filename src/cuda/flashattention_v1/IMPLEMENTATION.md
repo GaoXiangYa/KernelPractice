@@ -1,6 +1,6 @@
 # FlashAttention V1 实现与优化方案
 
-> 状态：M0 骨架完成（kernel 为桩，待 M1/M2 实现） | 目标硬件：NVIDIA RTX 3060 Ti (sm_86) | 参考论文：*FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness* (Dao et al., 2022)
+> 状态：M1 完成（v0 朴素融合 kernel 实现，测试转绿；v1 online softmax 待实现） | 目标硬件：NVIDIA RTX 3060 Ti (sm_86) | 参考论文：*FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness* (Dao et al., 2022)
 
 ## 1. 目标
 
@@ -61,16 +61,12 @@ Online softmax 核心状态（每行一组，全程 fp32）：
 
 ## 4. 接口与数据布局
 
-建议接口（先用具体函数，性能稳定后再模板化）：
+采用**双层 API**：
 
-```cpp
-// Q, K, V, O: (B, H, N, d) 连续 row-major
-// d 为 head_dim，支持 32/64/128（v0/v1 先支持 64 与 128）
-void flash_attn_v1(const float* Q, const float* K, const float* V,
-                   float* O, int B, int H, int N, int d, bool causal);
-```
+- **params 入口（device 指针、无拷贝）**：`flash_attn_v0(const FlashAttentionParams&)`，直接按 params 中的 device 指针与 stride 启动 kernel，不做任何内存管理；
+- **host 便捷包装（内部拷贝 + 建 params）**：`flash_attn_v0(const float* Q, const float* K, const float* V, float* O, int B, int H, int N, int d, bool causal)`，接收连续 row-major host 张量，内部拷贝进/出并构建 params，供 test/benchmark 使用。
 
-版本演进中保持同一签名（通过 `#if` 或函数指针选择实现），后续 fp16 版本可用同名模板或新增 `flash_attn_v1_half`。
+kernel 模板为 `<T, AccT, HEAD_DIM, BLOCK_M, BLOCK_N, BLOCK_K, CAUSAL>`；运行时 `head_dim` 分派到 `HEAD_DIM ∈ {32, 64, 128}` 实例（96 走 128 实例）。版本演进中保持同一签名，后续 fp16 版本可用同名模板或新增 `flash_attn_v1_half`。
 
 ## 5. 项目集成
 
@@ -80,6 +76,7 @@ void flash_attn_v1(const float* Q, const float* K, const float* V,
 src/cuda/flashattention_v1/
 ├── CMakeLists.txt
 ├── IMPLEMENTATION.md          # 本文件
+├── flash_attn.cuh             # FlashAttentionParams + make_flash_attn_params
 ├── flashattention_v1.h        # 公共接口
 ├── flash_attn_v0.cu           # 朴素融合（正确性基准）
 ├── flash_attn_v1.cu           # online softmax 分块版

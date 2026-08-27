@@ -1,12 +1,15 @@
 #include <gtest/gtest.h>
 #include <torch/torch.h>
 
+#include <cuda_runtime.h>
+
 #include <cmath>
 #include <cstring>
 #include <limits>
 #include <vector>
 
 #include "flashattention_v1.h"
+#include "util.h"
 
 using FlashAttnKernel = void (*)(const float*, const float*, const float*,
                                  float*, int, int, int, int, bool);
@@ -135,6 +138,45 @@ TEST(FlashAttnReference, matches_naive_double) {
     ASSERT_NEAR(o_naive[i], o_ref[i], kEpsilon) << "Mismatch at index " << i;
   }
 }
+
+// ---------------------------------------------------------------------------
+// device-pointer params API test (contiguous row-major tensors, no host copies)
+// ---------------------------------------------------------------------------
+static void test_flash_attn_params(int B, int H, int N, int d, bool causal) {
+  std::vector<float> q(B * H * N * d), k(B * H * N * d), v(B * H * N * d);
+  std::vector<float> o_ref(B * H * N * d), o_cuda(B * H * N * d, 0.0f);
+  for (auto& x : q) x = float(rand()) / RAND_MAX * 2.0f - 1.0f;
+  for (auto& x : k) x = float(rand()) / RAND_MAX * 2.0f - 1.0f;
+  for (auto& x : v) x = float(rand()) / RAND_MAX * 2.0f - 1.0f;
+  ref_flash_attn(q, k, v, o_ref, B, H, N, d, causal);
+
+  float *dQ = nullptr, *dK = nullptr, *dV = nullptr, *dO = nullptr;
+  const size_t bytes = (size_t)B * H * N * d * sizeof(float);
+  CHECK_CUDA(cudaMalloc(&dQ, bytes));
+  CHECK_CUDA(cudaMalloc(&dK, bytes));
+  CHECK_CUDA(cudaMalloc(&dV, bytes));
+  CHECK_CUDA(cudaMalloc(&dO, bytes));
+  CHECK_CUDA(cudaMemcpy(dQ, q.data(), bytes, cudaMemcpyHostToDevice));
+  CHECK_CUDA(cudaMemcpy(dK, k.data(), bytes, cudaMemcpyHostToDevice));
+  CHECK_CUDA(cudaMemcpy(dV, v.data(), bytes, cudaMemcpyHostToDevice));
+
+  FlashAttentionParams p = make_flash_attn_params(
+      dQ, dK, dV, dO, B, H, N, N, d, 1.0f / std::sqrt((float)d), causal);
+  flash_attn_v0(p);
+
+  CHECK_CUDA(cudaMemcpy(o_cuda.data(), dO, bytes, cudaMemcpyDeviceToHost));
+  CHECK_CUDA(cudaFree(dQ));
+  CHECK_CUDA(cudaFree(dK));
+  CHECK_CUDA(cudaFree(dV));
+  CHECK_CUDA(cudaFree(dO));
+
+  constexpr float kEpsilon = 1e-4f;
+  for (int i = 0; i < B * H * N * d; ++i)
+    ASSERT_NEAR(o_ref[i], o_cuda[i], kEpsilon) << "Mismatch at index " << i;
+}
+
+TEST(FlashAttnParamsApi, v0_1x1_64_64) { test_flash_attn_params(1, 1, 64, 64, false); }
+TEST(FlashAttnParamsApi, v0_1x2_128_128_causal) { test_flash_attn_params(1, 2, 128, 128, true); }
 
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
